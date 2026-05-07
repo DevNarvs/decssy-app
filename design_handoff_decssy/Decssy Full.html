@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Decssy — Full Prototype</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet"/>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="decssy-data.jsx"></script>
+  <script type="text/babel" src="decssy-full.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { width: 100%; height: 100%; background: #f0ece6; overflow: hidden; }
+    body { font-family: 'Nunito', sans-serif; display: flex; align-items: center; justify-content: center; }
+    input, select, textarea, button { font-family: inherit; }
+    ::-webkit-scrollbar { display: none; }
+    * { scrollbar-width: none; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#e8519a",
+  "fontChoice": "'Plus Jakarta Sans', sans-serif",
+  "showInviteLanding": false
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [showLanding, setShowLanding] = React.useState(tweaks.showInviteLanding);
+
+  // Sync landing toggle
+  React.useEffect(() => {
+    setShowLanding(tweaks.showInviteLanding);
+  }, [tweaks.showInviteLanding]);
+
+  return (
+    <>
+      {/* Stage — centered phone on warm canvas */}
+      <div style={{
+        display:"flex", alignItems:"center", justifyContent:"center",
+        width:"100vw", height:"100vh",
+        background:"radial-gradient(ellipse at 30% 40%, #f5e6d8 0%, #ede3da 50%, #e5ddd5 100%)",
+      }}>
+        {/* Subtle grid */}
+        <div style={{
+          position:"absolute", inset:0, opacity:0.4,
+          backgroundImage:"radial-gradient(circle, #c9b8a8 1px, transparent 1px)",
+          backgroundSize:"28px 28px",
+          pointerEvents:"none",
+        }}/>
+
+        {/* Phone label */}
+        <div style={{
+          position:"absolute", top:"calc(50% - 470px)", left:"50%", transform:"translateX(-50%)",
+          fontSize:13, fontWeight:800, color:"#9a8070", letterSpacing:1, textTransform:"uppercase",
+          fontFamily:"'DM Sans', sans-serif",
+        }}>Decssy · Peach Fuzz</div>
+
+        {/* Shortcut pills */}
+        <div style={{
+          position:"absolute", bottom:"calc(50% - 500px)", left:"50%", transform:"translateX(-50%)",
+          display:"flex", gap:8, zIndex:10,
+        }}>
+          {[
+            { label:"Invite landing", key:"showInviteLanding" },
+          ].map(({ label, key }) => (
+            <button key={key} onClick={() => setTweak(key, !tweaks[key])} style={{
+              background: tweaks[key] ? "#e8704a" : "rgba(255,255,255,0.8)",
+              border:"1.5px solid #ddd0c4", borderRadius:999, padding:"5px 14px",
+              fontSize:11, fontWeight:800, color: tweaks[key] ? "white" : "#9a7b6a",
+              cursor:"pointer", backdropFilter:"blur(4px)", fontFamily:"'DM Sans',sans-serif",
+              letterSpacing:0.5, transition:"all 0.18s",
+            }}>{label}</button>
+          ))}
+        </div>
+
+        {/* Device */}
+        <IOSDevice width={393} height={852} dark={false}>
+          <DecssyApp
+            key={tweaks.accentColor}
+            accentColor={tweaks.accentColor}
+            fontChoice={tweaks.fontChoice}
+            showInviteLanding={tweaks.showInviteLanding}
+          />
+        </IOSDevice>
+      </div>
+
+      {/* Tweaks panel */}
+      <TweaksPanel>
+        <TweakSection title="Brand">
+          <TweakColor
+            label="Accent color"
+            value={tweaks.accentColor}
+            options={["#e8704a","#e8519a","#e8a530","#3aab6e","#6366f1","#06b6d4"]}
+            onChange={v => setTweak("accentColor", v)}
+          />
+        </TweakSection>
+        <TweakSection title="Typography">
+          <TweakSelect
+            label="Font"
+            value={tweaks.fontChoice}
+            options={[
+              { label:"Nunito (default)", value:"'Nunito', sans-serif" },
+              { label:"DM Sans",          value:"'DM Sans', sans-serif" },
+              { label:"Plus Jakarta",     value:"'Plus Jakarta Sans', sans-serif" },
+            ]}
+            onChange={v => setTweak("fontChoice", v)}
+          />
+        </TweakSection>
+        <TweakSection title="Preview">
+          <TweakToggle
+            label="Show invite landing"
+            value={tweaks.showInviteLanding}
+            onChange={v => setTweak("showInviteLanding", v)}
+          />
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Decssy — Design Variants</title>
+
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <!-- Starter components -->
+  <script type="text/babel" src="decssy-app.jsx"></script>
+  <script type="text/babel" src="decssy-variant-a.jsx"></script>
+  <script type="text/babel" src="decssy-variant-b.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #1a1a1e; }
+    body { font-family: system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentA": "#8b5cf6",
+  "accentB": "#e8704a",
+  "darkBg": "#0f0f11",
+  "showLabels": true,
+  "compactNav": false
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection id="variants" title="Decssy — 2 Design Variants">
+          <DCArtboard id="obsidian" label="A — Obsidian (dark)" width={393} height={852}>
+            <IOSDevice width={393} height={852} dark={true}>
+              <DecssyVariantA accentColor={tweaks.accentA} darkBg={tweaks.darkBg}/>
+            </IOSDevice>
+          </DCArtboard>
+          <DCArtboard id="peachfuzz" label="B — Peach Fuzz (warm)" width={393} height={852}>
+            <IOSDevice width={393} height={852} dark={false}>
+              <DecssyVariantB accentColor={tweaks.accentB}/>
+            </IOSDevice>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel>
+        <TweakSection title="Variant A — Obsidian">
+          <TweakColor
+            label="Accent color"
+            value={tweaks.accentA}
+            options={["#8b5cf6","#6366f1","#3b82f6","#06b6d4","#10b981"]}
+            onChange={v => setTweak("accentA", v)}
+          />
+          <TweakColor
+            label="Background"
+            value={tweaks.darkBg}
+            options={["#0f0f11","#0d1117","#12101a","#0a0f1a","#111111"]}
+            onChange={v => setTweak("darkBg", v)}
+          />
+        </TweakSection>
+        <TweakSection title="Variant B — Peach Fuzz">
+          <TweakColor
+            label="Accent color"
+            value={tweaks.accentB}
+            options={["#e8704a","#e8519a","#e8a530","#3aab6e","#6366f1"]}
+            onChange={v => setTweak("accentB", v)}
+          />
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
