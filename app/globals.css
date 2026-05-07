@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* ── Colors — Peach Fuzz palette ─────────────────────────────────────── */
+  --color-bg: #fdf7f2;
+  --color-surface: #ffffff;
+  --color-surface-2: #f5ece4;
+  --color-border: #ecddd3;
+  --color-text: #2c1f17;
+  --color-text-muted: #9a7b6a;
+  --color-accent: #e8519a;
+  --color-accent-soft: rgba(232, 81, 154, 0.12);
+  --color-positive: #3aab6e;
+  --color-maybe: #e8a530;
+  --color-negative: #e04f4f;
+
+  /* Group palette (locked, see PRD §16.5.2) */
+  --color-group-emerald: #10b981;
+  --color-group-indigo: #6366f1;
+  --color-group-amber: #f59e0b;
+  --color-group-red: #ef4444;
+  --color-group-pink: #ec4899;
+  --color-group-cyan: #06b6d4;
+  --color-group-violet: #8b5cf6;
+  --color-group-lime: #84cc16;
+
+  /* ── Radii ───────────────────────────────────────────────────────────── */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+
+  /* ── Shadows ─────────────────────────────────────────────────────────── */
+  --shadow-sm: 0 2px 16px rgba(44, 31, 23, 0.08);
+  --shadow-md: 0 4px 24px rgba(44, 31, 23, 0.12);
+  --shadow-fab: 0 6px 20px rgba(232, 81, 154, 0.32);
+  --shadow-nav: 0 -4px 20px rgba(44, 31, 23, 0.06);
+
+  /* ── Fonts ───────────────────────────────────────────────────────────── */
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+
+  /* ── Font sizes (mobile scale, override defaults) ────────────────────── */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 17px;
+  --text-2xl: 20px;
+  --text-3xl: 24px;
+
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  --ease-ios-spring: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: -0.1px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button {
+    user-select: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+  .pb-nav {
+    padding-bottom: calc(64px + var(--safe-bottom));
+  }
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
 }
