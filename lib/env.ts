@@ -7,21 +7,23 @@ function required(name: string, value: string | undefined): string {
   return value;
 }
 
+/**
+ * Browser/Node env vars accessed by Next.js code.
+ *
+ * Convex Auth provider secrets (Google client secret, etc.) and the SITE_URL
+ * live in CONVEX's deployment env, not here. Set them with:
+ *   npx convex env set AUTH_GOOGLE_ID <client-id>
+ *   npx convex env set AUTH_GOOGLE_SECRET <client-secret>
+ *   npx convex env set SITE_URL <production-url>
+ */
 export const env = {
-  // Convex
+  // Convex deployment URL — auto-populated by `npx convex dev`.
   NEXT_PUBLIC_CONVEX_URL: required(
     "NEXT_PUBLIC_CONVEX_URL",
     process.env.NEXT_PUBLIC_CONVEX_URL,
   ),
 
-  // Clerk
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: required(
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-  ),
-  CLERK_SECRET_KEY: required("CLERK_SECRET_KEY", process.env.CLERK_SECRET_KEY),
-  CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET ?? "",
-
-  // App
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  // Public app URL — used for callbacks and shareable links.
+  NEXT_PUBLIC_APP_URL:
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
 };

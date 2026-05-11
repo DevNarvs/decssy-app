@@ -1,18 +1,43 @@
 import { defineSchema, defineTable } from "convex/server";
+import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
+/**
+ * Decssy schema.
+ *
+ * `authTables` from @convex-dev/auth provides:
+ *   - users (the canonical user; we extend it with `timezone` below)
+ *   - authAccounts (linked OAuth accounts)
+ *   - authSessions (active sessions)
+ *   - authVerificationCodes (magic links, email verifications)
+ *   - authVerifiers (passkey verifiers)
+ *   - authRateLimits
+ *   - authRefreshTokens
+ *
+ * We override `users` to add Decssy-specific fields. When overriding, we MUST
+ * preserve all fields the auth library expects (name, image, email, etc.).
+ */
 export default defineSchema({
-  users: defineTable({
-    clerkId: v.string(),
-    email: v.string(),
-    name: v.string(),
-    avatarUrl: v.optional(v.string()),
-    timezone: v.string(),
-  })
-    .index("by_clerkId", ["clerkId"])
-    .index("by_email", ["email"]),
+  ...authTables,
 
-  // Future plans flesh these out — included now to lock the schema shape early.
+  // Override the auth-provided `users` table with our extension.
+  users: defineTable({
+    // ── Auth-managed fields (do not remove) ─────────────────────────────
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+
+    // ── Decssy extensions ────────────────────────────────────────────────
+    timezone: v.optional(v.string()), // IANA, e.g. "Asia/Manila"; set during onboarding
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
+
+  // ── Future plans flesh these out — included now to lock the schema shape early.
   groups: defineTable({
     name: v.string(),
     description: v.optional(v.string()),
