@@ -11,6 +11,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireOwner, requireUser } from "./lib/permissions";
 import { generateInviteToken } from "./lib/tokens";
+import { createNotification } from "./notifications";
 
 const DEFAULT_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_ACTIVE_INVITES_PER_GROUP = 5;
@@ -189,6 +190,18 @@ export const acceptInvite = mutation({
     });
 
     await ctx.db.patch(invite._id, { usedCount: invite.usedCount + 1 });
+
+    // Notify the group owner that a new member joined.
+    const me = await ctx.db.get(userId);
+    const actorName = me?.name ?? me?.email ?? "Someone";
+    await createNotification(ctx, {
+      userId: group.ownerId,
+      type: "invite_accepted",
+      groupId: invite.groupId,
+      actorName,
+      actorUserId: userId,
+      message: `${actorName} joined "${group.name}"`,
+    });
 
     return invite.groupId;
   },

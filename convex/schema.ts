@@ -113,4 +113,27 @@ export default defineSchema({
     editedAt: v.optional(v.number()),
     deletedAt: v.optional(v.number()),
   }).index("by_event_and_created", ["eventId", "createdAt"]),
+
+  notifications: defineTable({
+    userId: v.id("users"), // recipient
+    type: v.union(
+      v.literal("event_invite"),
+      v.literal("event_updated"),
+      v.literal("event_cancelled"),
+      v.literal("comment_added"),
+      v.literal("invite_accepted"),
+      v.literal("ownership_transferred"),
+    ),
+    groupId: v.optional(v.id("groups")),
+    eventId: v.optional(v.id("events")),
+    actorName: v.string(),
+    actorUserId: v.optional(v.id("users")),
+    message: v.string(),
+    createdAt: v.number(),
+    readAt: v.optional(v.number()),
+    emailSentAt: v.optional(v.number()),
+  })
+    .index("by_user_and_created", ["userId", "createdAt"])
+    .index("by_user_and_unread", ["userId", "readAt"])
+    .index("by_email_pending", ["emailSentAt", "createdAt"]),
 });

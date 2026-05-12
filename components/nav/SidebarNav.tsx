@@ -1,14 +1,10 @@
 "use client";
 
-/**
- * Tablet+ left sidebar (hidden on mobile via hidden md:flex).
- *
- * Mirrors BottomTabBar's items but laid out vertically with text labels
- * always visible. Brand wordmark sits at the top.
- */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQuery } from "convex/react";
 import { Calendar, Users, Search, Bell } from "lucide-react";
+import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -20,6 +16,7 @@ const TABS = [
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const unread = useQuery(api.notifications.countUnread) ?? 0;
 
   return (
     <aside
@@ -35,6 +32,7 @@ export function SidebarNav() {
           {TABS.map((tab) => {
             const isActive = pathname.startsWith(tab.href);
             const Icon = tab.icon;
+            const showBadge = tab.href === "/inbox" && unread > 0;
             return (
               <li key={tab.href}>
                 <Link
@@ -48,7 +46,12 @@ export function SidebarNav() {
                   )}
                 >
                   <Icon size={20} strokeWidth={1.5} />
-                  {tab.label}
+                  <span className="flex-1">{tab.label}</span>
+                  {showBadge && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-extrabold text-white">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
                 </Link>
               </li>
             );

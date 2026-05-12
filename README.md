@@ -137,8 +137,8 @@ This project is built incrementally across 10 plans. Each plan ships working, te
 5. ✅ Calendar UI ([plans/05-calendar-ui.md](./plans/05-calendar-ui.md))
 6. ⬜ Event Detail & Comments (merged into Plan 4)
 7. ✅ Recurring Events ([plans/07-recurring-events.md](./plans/07-recurring-events.md)) — single-series edit; per-instance overrides deferred to Plan 10
-8. ✅ **Find Free Day** ([plans/08-find-free-day.md](./plans/08-find-free-day.md)) — current
-9. ⬜ Notifications
+8. ✅ Find Free Day ([plans/08-find-free-day.md](./plans/08-find-free-day.md))
+9. ✅ **Notifications** ([plans/09-notifications.md](./plans/09-notifications.md)) — current (in-app only; email + per-type preferences → Plan 10)
 10. ⬜ Polish & Launch
 
 ---

@@ -12,6 +12,7 @@ import {
   requireMember,
   requireOwner,
 } from "./lib/permissions";
+import { createNotification } from "./notifications";
 
 const NAME_MIN = 1;
 const NAME_MAX = 50;
@@ -316,5 +317,20 @@ export const transferOwnership = mutation({
     }
 
     await ctx.db.patch(groupId, { ownerId: newOwnerId });
+
+    // Notify the new owner.
+    const group = await ctx.db.get(groupId);
+    const actor = await ctx.db.get(currentOwnerId);
+    const actorName = actor?.name ?? actor?.email ?? "Someone";
+    if (group) {
+      await createNotification(ctx, {
+        userId: newOwnerId,
+        type: "ownership_transferred",
+        groupId,
+        actorName,
+        actorUserId: currentOwnerId,
+        message: `${actorName} made you the owner of "${group.name}"`,
+      });
+    }
   },
 });

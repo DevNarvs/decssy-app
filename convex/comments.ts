@@ -5,6 +5,7 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { getAttendance, requireUser } from "./lib/permissions";
+import { createNotification } from "./notifications";
 
 const MAX_BODY = 1000;
 
@@ -26,6 +27,30 @@ export const addComment = mutation({
       body: trimmed,
       createdAt: Date.now(),
     });
+
+    // Notify all event attendees except the commenter.
+    const event = await ctx.db.get(eventId);
+    if (!event) return;
+    const actor = await ctx.db.get(me.userId);
+    const actorName = actor?.name ?? actor?.email ?? "Someone";
+    const attendees = await ctx.db
+      .query("eventAttendees")
+      .withIndex("by_event", (q) => q.eq("eventId", eventId))
+      .collect();
+    const preview = trimmed.length > 60 ? trimmed.slice(0, 60) + "…" : trimmed;
+    for (const a of attendees) {
+      if (a.userId === me.userId) continue;
+      if (a.status === "declined") continue;
+      await createNotification(ctx, {
+        userId: a.userId,
+        type: "comment_added",
+        groupId: event.groupId,
+        eventId,
+        actorName,
+        actorUserId: me.userId,
+        message: `${actorName} on "${event.title}": "${preview}"`,
+      });
+    }
   },
 });
 

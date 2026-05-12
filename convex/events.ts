@@ -11,6 +11,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { requireMember, requireUser } from "./lib/permissions";
 import { expandOccurrences } from "./lib/recurrence";
+import { createNotification } from "./notifications";
 
 const TITLE_MIN = 1;
 const TITLE_MAX = 100;
@@ -88,6 +89,9 @@ export const createEvent = mutation({
       .withIndex("by_group", (q) => q.eq("groupId", args.groupId))
       .collect();
 
+    const creator = await ctx.db.get(userId);
+    const actorName = creator?.name ?? creator?.email ?? "Someone";
+
     for (const m of members) {
       const isCreator = m.userId === userId;
       const status =
@@ -98,6 +102,22 @@ export const createEvent = mutation({
         status,
         respondedAt: isCreator || args.type === "group_shared" ? now : undefined,
       });
+
+      // Notify each member (except creator) of the new event.
+      if (!isCreator) {
+        await createNotification(ctx, {
+          userId: m.userId,
+          type: "event_invite",
+          groupId: args.groupId,
+          eventId,
+          actorName,
+          actorUserId: userId,
+          message:
+            args.type === "group_shared"
+              ? `${actorName} added "${args.title.trim()}" to the group`
+              : `${actorName} invited you to "${args.title.trim()}"`,
+        });
+      }
     }
 
     return eventId;
@@ -379,6 +399,27 @@ export const updateEvent = mutation({
     }
 
     await ctx.db.patch(args.eventId, patch);
+
+    // Notify attending/maybe attendees of the update.
+    const actor = await ctx.db.get(userId);
+    const actorName = actor?.name ?? actor?.email ?? "Someone";
+    const attendees = await ctx.db
+      .query("eventAttendees")
+      .withIndex("by_event", (q) => q.eq("eventId", args.eventId))
+      .collect();
+    for (const a of attendees) {
+      if (a.userId === userId) continue;
+      if (a.status === "declined") continue;
+      await createNotification(ctx, {
+        userId: a.userId,
+        type: "event_updated",
+        groupId: event.groupId,
+        eventId: args.eventId,
+        actorName,
+        actorUserId: userId,
+        message: `${actorName} updated "${event.title}"`,
+      });
+    }
   },
 });
 
@@ -397,5 +438,26 @@ export const cancelEvent = mutation({
       throw new Error("Only the event creator can cancel");
     }
     await ctx.db.patch(eventId, { deletedAt: Date.now() });
+
+    // Notify all non-declined attendees that the event was cancelled.
+    const actor = await ctx.db.get(userId);
+    const actorName = actor?.name ?? actor?.email ?? "Someone";
+    const attendees = await ctx.db
+      .query("eventAttendees")
+      .withIndex("by_event", (q) => q.eq("eventId", eventId))
+      .collect();
+    for (const a of attendees) {
+      if (a.userId === userId) continue;
+      if (a.status === "declined") continue;
+      await createNotification(ctx, {
+        userId: a.userId,
+        type: "event_cancelled",
+        groupId: event.groupId,
+        eventId,
+        actorName,
+        actorUserId: userId,
+        message: `${actorName} cancelled "${event.title}"`,
+      });
+    }
   },
 });
