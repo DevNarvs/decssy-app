@@ -45,3 +45,37 @@ export const setTimezone = mutation({
     await ctx.db.patch(userId, { timezone });
   },
 });
+
+/**
+ * Records onboarding completion. Idempotent — calling more than once
+ * preserves the original onboardedAt timestamp. Updates name + timezone
+ * at the same time so the user lands on /calendar with a configured row.
+ */
+export const completeOnboarding = mutation({
+  args: {
+    name: v.string(),
+    timezone: v.string(),
+  },
+  handler: async (ctx, { name, timezone }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not signed in");
+    }
+    const trimmed = name.trim();
+    if (trimmed.length < 1 || trimmed.length > 50) {
+      throw new Error("Name must be 1–50 characters");
+    }
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User row missing — auth state likely stale");
+    }
+    const patch: { name: string; timezone: string; onboardedAt?: number } = {
+      name: trimmed,
+      timezone,
+    };
+    if (user.onboardedAt === undefined) {
+      patch.onboardedAt = Date.now();
+    }
+    await ctx.db.patch(userId, patch);
+  },
+});
