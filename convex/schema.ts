@@ -33,6 +33,7 @@ export default defineSchema({
 
     // ── Decssy extensions ────────────────────────────────────────────────
     timezone: v.optional(v.string()), // IANA, e.g. "Asia/Manila"; set during onboarding
+    onboardedAt: v.optional(v.number()), // ms epoch — set once when user completes the 3-step onboarding
   })
     .index("email", ["email"])
     .index("phone", ["phone"]),
