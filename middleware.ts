@@ -1,15 +1,19 @@
 /**
- * Next.js middleware — Convex Auth route protection.
+ * Next.js middleware — Convex Auth route protection + onboarding gate.
  *
- * Behaviour:
- *   • Authenticated users hitting /sign-in or /sign-up → redirect to /calendar
- *   • Unauthenticated users hitting any /calendar /groups /find /inbox /settings
- *     route → redirect to /sign-in
- *   • Public routes (sign-in, sign-up, /join/* invite landing in future plans)
- *     are accessible to everyone
+ * Routing rules:
+ *   • Authenticated user hitting /sign-in or /sign-up → /calendar
+ *   • Unauthenticated user hitting a protected route → /sign-in
+ *   • Authenticated but not-yet-onboarded user hitting a protected route
+ *     → /welcome (onboardedness detected via the `decssy_onboarded` cookie)
+ *   • Authenticated AND onboarded user hitting /welcome/* → /calendar
  *
- * `convexAuthNextjsMiddleware` runs BEFORE every request matched by `config`
- * and exposes the auth context via the second argument.
+ * Cookie strategy: middleware runs at the edge and can't easily hit Convex
+ * for a DB lookup on every request. Instead we set a `decssy_onboarded=1`
+ * cookie when the user completes the onboarding mutation, and trust its
+ * presence here. The cookie value is non-sensitive (just "1"). Worst case
+ * if it desyncs: the client-side OnboardingGuard (TBD in a future plan)
+ * could double-check via Convex query.
  */
 import {
   convexAuthNextjsMiddleware,
@@ -18,6 +22,7 @@ import {
 } from "@convex-dev/auth/nextjs/server";
 
 const isSignInPage = createRouteMatcher(["/sign-in", "/sign-up"]);
+const isWelcomePage = createRouteMatcher(["/welcome(.*)"]);
 const isProtectedRoute = createRouteMatcher([
   "/calendar(.*)",
   "/groups(.*)",
@@ -35,6 +40,18 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
 
   if (isProtectedRoute(request) && !isAuthed) {
     return nextjsMiddlewareRedirect(request, "/sign-in");
+  }
+
+  // Onboarding gate (cookie-based)
+  if (isAuthed) {
+    const onboarded = request.cookies.get("decssy_onboarded")?.value === "1";
+
+    if (!onboarded && isProtectedRoute(request)) {
+      return nextjsMiddlewareRedirect(request, "/welcome");
+    }
+    if (onboarded && isWelcomePage(request)) {
+      return nextjsMiddlewareRedirect(request, "/calendar");
+    }
   }
 });
 
