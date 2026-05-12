@@ -11,9 +11,10 @@
  * Everything else — Google OAuth button, password field validation, error
  * surfacing, loading states — is identical.
  */
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { GoogleIcon } from "./GoogleIcon";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ interface AuthFormProps {
 
 export function AuthForm({ flow }: AuthFormProps) {
   const { signIn } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,14 +37,38 @@ export function AuthForm({ flow }: AuthFormProps) {
 
   const isBusy = isPasswordLoading || isGoogleLoading;
 
+  // Ref so the catch handler below can read the *current* auth state inside
+  // an async closure (regular closures would capture a stale value).
+  const isAuthenticatedRef = useRef(isAuthenticated);
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
+
+  // Drive navigation from auth state, not from the form's try/catch. This
+  // decouples "did the call throw?" from "is the user signed in?" — the
+  // latter is the actual question we care about. Convex Auth occasionally
+  // throws a 400 on a follow-up token call even when the primary sign-in
+  // succeeded; this effect ignores that noise and still navigates correctly.
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/calendar");
+    }
+  }, [isAuthenticated, router]);
+
   async function handleGoogle() {
     setError(null);
     setIsGoogleLoading(true);
     try {
       await signIn("google", { redirectTo: "/calendar" });
-      // signIn redirects away — code below won't execute on success
+      // signIn navigates away to Google for OAuth, then back to our callback —
+      // code below won't execute on success.
     } catch (err) {
-      setError(humanizeError(err));
+      // Same post-sign-in 400 race as password flow; defer the verdict.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (!isAuthenticatedRef.current) {
+        setError(humanizeError(err, flow));
+      }
+    } finally {
       setIsGoogleLoading(false);
     }
   }
@@ -63,9 +89,19 @@ export function AuthForm({ flow }: AuthFormProps) {
     setIsPasswordLoading(true);
     try {
       await signIn("password", { email, password, flow });
-      router.push("/calendar");
+      // Navigation is driven by the useEffect above (auth-state-driven),
+      // not here. signIn resolves before isAuthenticated flips, so router.push
+      // here would race with the auth-state propagation.
     } catch (err) {
-      setError(humanizeError(err, flow));
+      // Convex Auth sometimes throws a 400 from a follow-up token call even
+      // when the primary sign-in succeeded. Give the auth state a tick to
+      // settle, then only surface the error if we're genuinely NOT signed in.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (!isAuthenticatedRef.current) {
+        setError(humanizeError(err, flow));
+      }
+      // else: useEffect above is already redirecting to /calendar.
+    } finally {
       setIsPasswordLoading(false);
     }
   }
