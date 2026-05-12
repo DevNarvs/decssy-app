@@ -55,4 +55,17 @@ export default defineSchema({
     .index("by_group", ["groupId"])
     .index("by_user", ["userId"])
     .index("by_group_and_user", ["groupId", "userId"]),
+
+  groupInvites: defineTable({
+    groupId: v.id("groups"),
+    token: v.string(), // URL-safe random, ~24 chars (~143 bits entropy)
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    expiresAt: v.number(), // ms epoch; default = createdAt + 7d
+    maxUses: v.optional(v.number()), // undefined = unlimited
+    usedCount: v.number(), // increments on each successful acceptInvite
+    revokedAt: v.optional(v.number()), // soft revoke; absence = active
+  })
+    .index("by_token", ["token"])
+    .index("by_group", ["groupId"]),
 });

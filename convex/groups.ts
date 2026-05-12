@@ -238,9 +238,8 @@ export const leaveGroup = mutation({
 });
 
 /**
- * Owner-only deletion. Cascades to groupMembers (the only dependent table
- * in Plan 2's scope). Future plans (events, comments, invites) MUST extend
- * this cascade — see plan §"Risks called out" #2.
+ * Owner-only deletion. Cascades to groupMembers AND groupInvites.
+ * Future plans (events, comments) MUST extend this cascade.
  */
 export const deleteGroup = mutation({
   args: { groupId: v.id("groups") },
@@ -255,6 +254,48 @@ export const deleteGroup = mutation({
       await ctx.db.delete(m._id);
     }
 
+    // Plan 3: cascade-delete invites for the group.
+    const invites = await ctx.db
+      .query("groupInvites")
+      .withIndex("by_group", (q) => q.eq("groupId", groupId))
+      .collect();
+    for (const i of invites) {
+      await ctx.db.delete(i._id);
+    }
+
     await ctx.db.delete(groupId);
+  },
+});
+
+/**
+ * Owner-only: hand over ownership to another member of the group.
+ *
+ * The new owner must already be a member. After transfer, the previous
+ * owner remains a regular member (does NOT auto-leave).
+ *
+ * Plan 9 will add an audit log entry here.
+ */
+export const transferOwnership = mutation({
+  args: {
+    groupId: v.id("groups"),
+    newOwnerId: v.id("users"),
+  },
+  handler: async (ctx, { groupId, newOwnerId }) => {
+    const currentOwnerId = await requireOwner(ctx, groupId);
+    if (newOwnerId === currentOwnerId) {
+      throw new Error("You're already the owner");
+    }
+
+    const membership = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_group_and_user", (q) =>
+        q.eq("groupId", groupId).eq("userId", newOwnerId),
+      )
+      .unique();
+    if (!membership) {
+      throw new Error("The chosen person is not a member of this group");
+    }
+
+    await ctx.db.patch(groupId, { ownerId: newOwnerId });
   },
 });
