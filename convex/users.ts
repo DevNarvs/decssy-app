@@ -1,0 +1,47 @@
+/**
+ * User-related queries and mutations.
+ *
+ * Convex Auth manages the `users` table itself (creating rows on sign-up,
+ * linking OAuth accounts, etc.). This file adds Decssy-specific user logic
+ * on top — fetching the current user with our extended fields.
+ */
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+
+/**
+ * Returns the currently signed-in user document, or null if not signed in
+ * (the latter shouldn't happen on protected routes — middleware redirects
+ * unauthed users to /sign-in — but defensive null-handling keeps queries
+ * safe during the brief post-login render before the session hydrates).
+ */
+export const getCurrentUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return null;
+    return await ctx.db.get(userId);
+  },
+});
+
+/**
+ * Idempotent mutation to persist the user's timezone on their row.
+ * Called once on first authenticated render, using the browser's IANA
+ * timezone (Intl.DateTimeFormat().resolvedOptions().timeZone). Subsequent
+ * calls with the same value are no-ops; different value triggers a patch.
+ */
+export const setTimezone = mutation({
+  args: { timezone: v.string() },
+  handler: async (ctx, { timezone }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not signed in");
+    }
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User row missing — auth state likely stale");
+    }
+    if (user.timezone === timezone) return;
+    await ctx.db.patch(userId, { timezone });
+  },
+});
