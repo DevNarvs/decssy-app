@@ -3,11 +3,13 @@
 import { use } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
-import { ArrowLeft, Settings, Share2 } from "lucide-react";
+import { ArrowLeft, Settings, Share2, Plus, CalendarDays } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { GroupHero } from "@/components/groups/GroupHero";
 import { MemberList } from "@/components/groups/MemberList";
+import { EventCard } from "@/components/events/EventCard";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -17,6 +19,10 @@ export default function GroupDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const groupId = id as Id<"groups">;
   const detail = useQuery(api.groups.getGroup, { groupId });
+  const upcoming = useQuery(api.events.listUpcomingEventsInGroup, {
+    groupId,
+    limit: 5,
+  });
 
   if (detail === undefined) {
     return (
@@ -83,6 +89,53 @@ export default function GroupDetailPage({ params }: PageProps) {
             </Link>
           )}
         </div>
+
+        {/* Upcoming events */}
+        <section>
+          <div className="mb-2 flex items-center justify-between px-1">
+            <h3 className="text-sm font-extrabold uppercase tracking-wide text-text-muted">
+              Upcoming events
+            </h3>
+            <Link
+              href={`/groups/${groupId}/events/new`}
+              className="flex items-center gap-1 text-sm font-extrabold text-accent"
+            >
+              <Plus size={12} strokeWidth={2.5} />
+              New
+            </Link>
+          </div>
+          {upcoming === undefined && (
+            <div className="space-y-2">
+              {[...Array(2)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-16 animate-pulse rounded-lg bg-surface-2"
+                />
+              ))}
+            </div>
+          )}
+          {upcoming !== undefined && upcoming !== null && upcoming.length === 0 && (
+            <EmptyState
+              icon={<CalendarDays size={20} strokeWidth={1.5} />}
+              title="No upcoming events"
+              description="Add the first event to start coordinating."
+              cta={{
+                label: "Create an event",
+                href: `/groups/${groupId}/events/new`,
+              }}
+              className="py-8"
+            />
+          )}
+          {upcoming !== undefined && upcoming !== null && upcoming.length > 0 && (
+            <ul className="space-y-2">
+              {upcoming.map((e) => (
+                <li key={e._id}>
+                  <EventCard event={e} groupColor={detail.group.color} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <section>
           <h3 className="mb-2 px-1 text-sm font-extrabold uppercase tracking-wide text-text-muted">
