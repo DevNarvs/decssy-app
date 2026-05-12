@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { ConvexClientProvider } from "@/components/providers/ConvexClientProvider";
+import { ServiceWorkerRegistrar } from "@/components/providers/ServiceWorkerRegistrar";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -41,6 +42,7 @@ export default function RootLayout({
       <html lang="en" className={`${jakarta.variable} h-full antialiased`}>
         <body className="min-h-full flex flex-col">
           <ConvexClientProvider>{children}</ConvexClientProvider>
+          <ServiceWorkerRegistrar />
         </body>
       </html>
     </ConvexAuthNextjsServerProvider>
