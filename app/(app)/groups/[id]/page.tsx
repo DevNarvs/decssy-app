@@ -34,6 +34,15 @@ export default function GroupDetailPage({ params }: PageProps) {
     );
   }
 
+  if (detail === null) {
+    // Group was deleted, or you were removed. The DangerZone usually
+    // navigates first, but if we get here directly, redirect gracefully.
+    if (typeof window !== "undefined") {
+      window.location.href = "/groups";
+    }
+    return null;
+  }
+
   return (
     <div className="mx-auto max-w-md px-4 pt-safe pb-12">
       <header className="flex items-center gap-3 py-4">

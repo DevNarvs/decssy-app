@@ -2,6 +2,7 @@
  * Group-related queries and mutations.
  * Permission checks delegate to convex/lib/permissions.ts.
  */
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -101,18 +102,32 @@ export const listMyGroups = query({
 });
 
 /**
- * Returns full group detail including hydrated members.
- * Throws if the caller isn't a member.
+ * Returns full group detail including hydrated members, OR null if the
+ * caller isn't a member / the group is gone.
+ *
+ * Returning null (rather than throwing) is critical for the "delete a group
+ * I'm viewing" UX: after the delete mutation fires, this reactive query
+ * re-runs and finds itself unauthorized — without the null path it would
+ * crash the page with "Not a member of this group" before the navigation
+ * to /groups completes. Same protection applies when an owner removes you
+ * from a group while you have it open.
  */
 export const getGroup = query({
   args: { groupId: v.id("groups") },
   handler: async (ctx, { groupId }) => {
-    const userId = await requireMember(ctx, groupId);
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return null;
+
+    const membership = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_group_and_user", (q) =>
+        q.eq("groupId", groupId).eq("userId", userId),
+      )
+      .unique();
+    if (!membership) return null;
 
     const group = await ctx.db.get(groupId);
-    if (!group) {
-      throw new Error("Group not found");
-    }
+    if (!group) return null;
 
     const memberships = await ctx.db
       .query("groupMembers")

@@ -33,6 +33,12 @@ export default function GroupSettingsPage({ params }: PageProps) {
     );
   }
 
+  if (detail === null) {
+    // Group was deleted / you left mid-view. The DangerZone's confirm
+    // flow handles the happy path; this is just defensive cleanup.
+    return null;
+  }
+
   return (
     <div className="mx-auto max-w-md px-4 pt-safe pb-12">
       <header className="flex items-center gap-3 py-4">
