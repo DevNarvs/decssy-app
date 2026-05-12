@@ -65,7 +65,7 @@ export function AuthForm({ flow }: AuthFormProps) {
       await signIn("password", { email, password, flow });
       router.push("/calendar");
     } catch (err) {
-      setError(humanizeError(err));
+      setError(humanizeError(err, flow));
       setIsPasswordLoading(false);
     }
   }
@@ -183,29 +183,54 @@ export function AuthForm({ flow }: AuthFormProps) {
 }
 
 /**
- * Convex Auth surfaces several error shapes:
- *   - Server-side ConvexError with a `data` payload (e.g., "InvalidPassword")
- *   - Generic JS Error with a `.message`
- *   - Plain strings (rare)
+ * Map Convex Auth errors to user-friendly copy.
  *
- * Map known codes to friendly copy; fall back to the raw message.
+ * Convex Auth's Password provider throws plain `Error("Invalid credentials")`
+ * for any wrong-email-OR-wrong-password combination (a deliberate security
+ * choice — never tell attackers which half is wrong). The flow context lets
+ * us still write copy that's slightly more action-oriented per page.
+ *
+ * Other error shapes we've seen in practice:
+ *   - "Server Error" wrapper around the underlying message
+ *   - "ConvexError" prefix
+ *   - 400 with no message at all (timeout / network race)
  */
-function humanizeError(err: unknown): string {
-  const fallback = "Something went wrong. Try again.";
+function humanizeError(err: unknown, flow: Flow): string {
+  const fallback =
+    flow === "signUp"
+      ? "Couldn't create your account. Try again."
+      : "Couldn't sign you in. Check your email and password.";
   if (!err) return fallback;
   const msg = err instanceof Error ? err.message : String(err);
 
-  if (/InvalidAccountId|account.*not.*found/i.test(msg)) {
-    return "No account with that email. Try signing up instead.";
+  // Wrong email-password combo (most common case)
+  if (/Invalid credentials|InvalidSecret|InvalidAccountId|wrong.*password/i.test(msg)) {
+    return flow === "signUp"
+      ? "Couldn't create that account. The email may already be taken — try signing in."
+      : "Wrong email or password. Try again, or use Google sign-in.";
   }
-  if (/InvalidPassword|wrong.*password/i.test(msg)) {
-    return "Wrong password. Try again or use Google sign-in.";
+
+  // Account already exists (signUp flow)
+  if (/AlreadyExists|account.*exists|duplicate.*email/i.test(msg)) {
+    return "An account with that email already exists. Try signing in instead.";
   }
-  if (/AlreadyExists|account.*exists/i.test(msg)) {
-    return "An account with that email already exists. Try signing in.";
+
+  // Validation failures we don't catch client-side
+  if (/Missing.*password|Missing.*email|Missing.*flow/i.test(msg)) {
+    return "Please fill in both email and password.";
   }
-  if (/network|fetch failed|ENOTFOUND/i.test(msg)) {
+
+  // Network / connectivity
+  if (/network|fetch failed|ENOTFOUND|Failed to fetch/i.test(msg)) {
     return "Network error. Check your connection and try again.";
   }
-  return msg.length > 120 ? fallback : msg;
+
+  // Provider misconfiguration (devs see this — users shouldn't)
+  if (/provider.*not.*configured|Missing.*AUTH_/i.test(msg)) {
+    return "Sign-in is temporarily unavailable. Please try again later.";
+  }
+
+  // Catch-all: only show raw message if it's short and reasonable;
+  // otherwise show flow-aware fallback.
+  return msg.length > 0 && msg.length < 80 && !msg.includes("\n") ? msg : fallback;
 }
