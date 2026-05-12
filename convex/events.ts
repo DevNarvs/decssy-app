@@ -172,6 +172,74 @@ export const listUpcomingEventsInGroup = query({
 });
 
 /**
+ * Aggregate events across ALL groups the caller is a member of, within
+ * a date range. Optional groupIds filter narrows to a subset.
+ *
+ * Returns enriched rows with group color + name for client rendering.
+ * Returns null if not authenticated.
+ *
+ * Used by the Calendar tab. O(groups × events-in-range) DB calls — fine
+ * up to PRD's 50-groups-per-user cap; Plan 9+ can add a busy-cache table
+ * if scale demands.
+ */
+export const listMyEventsInRange = query({
+  args: {
+    rangeStart: v.number(),
+    rangeEnd: v.number(),
+    groupIds: v.optional(v.array(v.id("groups"))),
+  },
+  handler: async (ctx, { rangeStart, rangeEnd, groupIds }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return null;
+
+    const memberships = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    let memberGroupIds = memberships.map((m) => m.groupId);
+
+    if (groupIds !== undefined) {
+      const allowed = new Set(groupIds.map((id) => id.toString()));
+      memberGroupIds = memberGroupIds.filter((id) => allowed.has(id.toString()));
+    }
+
+    const groupsById = new Map<string, Doc<"groups">>();
+    for (const gid of memberGroupIds) {
+      const g = await ctx.db.get(gid);
+      if (g) groupsById.set(gid.toString(), g);
+    }
+
+    const enriched: Array<{
+      event: Doc<"events">;
+      groupColor: string;
+      groupName: string;
+    }> = [];
+
+    for (const gid of memberGroupIds) {
+      const events = await ctx.db
+        .query("events")
+        .withIndex("by_group_and_start", (q) =>
+          q.eq("groupId", gid).gte("startUtc", rangeStart),
+        )
+        .collect();
+      for (const e of events) {
+        if (e.deletedAt !== undefined) continue;
+        if (e.startUtc > rangeEnd) continue;
+        const g = groupsById.get(e.groupId.toString());
+        enriched.push({
+          event: e,
+          groupColor: g?.color ?? "#9CA3AF",
+          groupName: g?.name ?? "Unknown",
+        });
+      }
+    }
+
+    enriched.sort((a, b) => a.event.startUtc - b.event.startUtc);
+    return enriched;
+  },
+});
+
+/**
  * Full event detail: event row + hydrated attendees + non-deleted comments
  * + the caller's own RSVP status. Returns null if the caller isn't a
  * member of the group or if the event is deleted.
