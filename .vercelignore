@@ -1,0 +1,25 @@
+# Exclude non-app files from Vercel deploys.
+# These are tracked in git for repo organization but don't belong in
+# production builds — they bloat upload size and surface in serverless
+# function bundles unnecessarily.
+
+# Specs and planning
+PRD.md
+DESIGN_BRIEF.md
+plans/
+design_handoff_decssy/
+
+# Tests (Vercel doesn't run them; we use them locally + future CI)
+tests/
+playwright.config.ts
+playwright-report/
+test-results/
+
+# Tooling
+scripts/
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
