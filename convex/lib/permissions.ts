@@ -9,6 +9,26 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 
+/**
+ * Resolves the caller's attendance row for an event, or null if either
+ * they're not signed in or they're not on the event's invite list.
+ * Used by setRsvp, addComment, and read-side event permission checks.
+ */
+export async function getAttendance(
+  ctx: QueryCtx | MutationCtx,
+  eventId: Id<"events">,
+): Promise<{ userId: Id<"users">; status: string } | null> {
+  const userId = await getAuthUserId(ctx);
+  if (userId === null) return null;
+  const row = await ctx.db
+    .query("eventAttendees")
+    .withIndex("by_event_and_user", (q) =>
+      q.eq("eventId", eventId).eq("userId", userId),
+    )
+    .unique();
+  return row ? { userId, status: row.status } : null;
+}
+
 export async function requireUser(
   ctx: QueryCtx | MutationCtx,
 ): Promise<Id<"users">> {

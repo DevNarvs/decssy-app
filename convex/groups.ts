@@ -263,6 +263,25 @@ export const deleteGroup = mutation({
       await ctx.db.delete(i._id);
     }
 
+    // Plan 4: cascade-delete events + their attendees + comments.
+    const events = await ctx.db
+      .query("events")
+      .withIndex("by_group", (q) => q.eq("groupId", groupId))
+      .collect();
+    for (const e of events) {
+      const attendees = await ctx.db
+        .query("eventAttendees")
+        .withIndex("by_event", (q) => q.eq("eventId", e._id))
+        .collect();
+      for (const a of attendees) await ctx.db.delete(a._id);
+      const comments = await ctx.db
+        .query("eventComments")
+        .withIndex("by_event_and_created", (q) => q.eq("eventId", e._id))
+        .collect();
+      for (const c of comments) await ctx.db.delete(c._id);
+      await ctx.db.delete(e._id);
+    }
+
     await ctx.db.delete(groupId);
   },
 });

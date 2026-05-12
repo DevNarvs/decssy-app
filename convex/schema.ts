@@ -68,4 +68,48 @@ export default defineSchema({
   })
     .index("by_token", ["token"])
     .index("by_group", ["groupId"]),
+
+  events: defineTable({
+    groupId: v.id("groups"),
+    type: v.union(
+      v.literal("personal_shared"),
+      v.literal("group_shared"),
+    ),
+    title: v.string(),
+    description: v.optional(v.string()),
+    isAllDay: v.boolean(),
+    startUtc: v.number(),
+    endUtc: v.number(),
+    eventTimezone: v.string(), // IANA — see PRD §14.2 for why all-day events need this
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    deletedAt: v.optional(v.number()), // soft delete
+  })
+    .index("by_group", ["groupId"])
+    .index("by_group_and_start", ["groupId", "startUtc"])
+    .index("by_creator", ["createdBy"]),
+
+  eventAttendees: defineTable({
+    eventId: v.id("events"),
+    userId: v.id("users"),
+    status: v.union(
+      v.literal("invited"),
+      v.literal("attending"),
+      v.literal("maybe"),
+      v.literal("declined"),
+    ),
+    respondedAt: v.optional(v.number()),
+  })
+    .index("by_event", ["eventId"])
+    .index("by_user", ["userId"])
+    .index("by_event_and_user", ["eventId", "userId"]),
+
+  eventComments: defineTable({
+    eventId: v.id("events"),
+    userId: v.id("users"),
+    body: v.string(),
+    createdAt: v.number(),
+    editedAt: v.optional(v.number()),
+    deletedAt: v.optional(v.number()),
+  }).index("by_event_and_created", ["eventId", "createdAt"]),
 });
