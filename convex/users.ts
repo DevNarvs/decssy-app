@@ -47,6 +47,29 @@ export const setTimezone = mutation({
 });
 
 /**
+ * Owner-self mutation: update per-type email notification preferences.
+ * Pass `true` to opt in, `false` to opt out, or omit a key to use defaults
+ * (PRD §12.4: most types on by default; comment_added off by default).
+ */
+export const updateNotificationPrefs = mutation({
+  args: {
+    prefs: v.object({
+      event_invite: v.optional(v.boolean()),
+      event_updated: v.optional(v.boolean()),
+      event_cancelled: v.optional(v.boolean()),
+      comment_added: v.optional(v.boolean()),
+      invite_accepted: v.optional(v.boolean()),
+      ownership_transferred: v.optional(v.boolean()),
+    }),
+  },
+  handler: async (ctx, { prefs }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not signed in");
+    await ctx.db.patch(userId, { notificationEmailPrefs: prefs });
+  },
+});
+
+/**
  * Records onboarding completion. Idempotent — calling more than once
  * preserves the original onboardedAt timestamp. Updates name + timezone
  * at the same time so the user lands on /calendar with a configured row.

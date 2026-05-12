@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
+import { Settings } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
@@ -15,6 +17,7 @@ import { AgendaList } from "@/components/calendar/AgendaList";
 import { CreateEventFAB } from "@/components/calendar/CreateEventFAB";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CalendarDays } from "lucide-react";
+// `Link` from next/link is imported above; we use it for the settings cog.
 
 export default function CalendarPage() {
   const router = useRouter();
@@ -136,6 +139,13 @@ export default function CalendarPage() {
         <h1 className="text-2xl font-extrabold tracking-tight text-text">
           Decssy<span className="text-accent">.</span>
         </h1>
+        <Link
+          href="/settings"
+          aria-label="Settings"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-text-muted hover:text-text"
+        >
+          <Settings size={16} strokeWidth={1.5} />
+        </Link>
       </header>
 
       {/* Group filter chips */}

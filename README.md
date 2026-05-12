@@ -138,8 +138,62 @@ This project is built incrementally across 10 plans. Each plan ships working, te
 6. ⬜ Event Detail & Comments (merged into Plan 4)
 7. ✅ Recurring Events ([plans/07-recurring-events.md](./plans/07-recurring-events.md)) — single-series edit; per-instance overrides deferred to Plan 10
 8. ✅ Find Free Day ([plans/08-find-free-day.md](./plans/08-find-free-day.md))
-9. ✅ **Notifications** ([plans/09-notifications.md](./plans/09-notifications.md)) — current (in-app only; email + per-type preferences → Plan 10)
-10. ⬜ Polish & Launch
+9. ✅ Notifications ([plans/09-notifications.md](./plans/09-notifications.md)) — in-app + email (via Resend, env-gated) + per-type preferences
+10. ✅ **Polish & Launch** ([plans/10-polish-launch.md](./plans/10-polish-launch.md)) — current (email cron, settings page, Vercel deploy)
+
+---
+
+## 🚀 Deploy to Vercel
+
+Convex backend is already in production after `npx convex dev` ran. Frontend deploys to Vercel.
+
+### One-time setup
+
+1. **Push to GitHub** (if not already):
+   ```bash
+   gh repo create decssy --private --source . --push
+   ```
+2. **Convex production deploy**:
+   ```bash
+   npx convex deploy
+   # Note the production URL — looks like https://<name>.convex.cloud
+   ```
+3. **Set production Convex env vars** (mirror dev with prod values):
+   ```bash
+   npx convex env set --prod AUTH_GOOGLE_ID "<same as dev>"
+   npx convex env set --prod AUTH_GOOGLE_SECRET "<same as dev>"
+   npx convex env set --prod SITE_URL "https://<your-vercel-app>.vercel.app"
+   npx convex env set --prod AUTH_RESEND_API_KEY "<from resend.com — optional>"
+   # JWT_PRIVATE_KEY + JWKS auto-set by Convex Auth — do NOT manually copy from dev
+   npx @convex-dev/auth --prod --web-server-url "https://<your-vercel-app>.vercel.app"
+   # IMPORTANT — remove the bad override the CLI sets:
+   npx convex env remove --prod CUSTOM_AUTH_SITE_URL
+   ```
+4. **Add Vercel deploy** via dashboard: import the GitHub repo. Set env vars:
+   - `NEXT_PUBLIC_CONVEX_URL` = your production `.convex.cloud` URL
+   - `NEXT_PUBLIC_APP_URL` = your Vercel URL (e.g., `https://decssy.vercel.app`)
+5. **Update Google OAuth** to add the prod URLs:
+   - Authorized JavaScript origins: `https://<your-vercel-app>.vercel.app`
+   - Authorized redirect URIs: `https://<prod-convex>.convex.site/api/auth/callback/google`
+6. (Optional) **Set up Resend** for emails: sign up at https://resend.com, verify a sending domain (or use their `onboarding@resend.dev` for testing), copy API key, set as `AUTH_RESEND_API_KEY` in Convex prod env.
+
+### What ships
+
+Full feature set across 8 functional plans + 2 deferred-merge plans:
+
+- **Auth**: Google OAuth + email/password via Convex Auth
+- **Onboarding**: 3-step welcome wizard with timezone auto-detect
+- **Groups**: create / list / edit / leave / delete / transfer ownership
+- **Invites**: QR code + shareable link, public landing with OG meta tags, auto-join post-auth
+- **Events**: personal_shared + group_shared with all-day or timed scheduling
+- **RSVP**: real-time propagation, going/maybe/can't go
+- **Comments**: per-event thread with delete-own
+- **Calendar**: month grid with color-coded dots, agenda below, group filter chips, FAB create
+- **Recurring**: daily/weekly/monthly/yearly with optional UNTIL date
+- **Find Free Day**: algorithm-ranked slots across selected members
+- **Notifications**: in-app inbox + reactive unread badge + email via Resend (gated, opt-out per type)
+- **Settings**: email preferences + sign out
+- **PWA**: installable on phones with manifest + service worker
 
 ---
 
