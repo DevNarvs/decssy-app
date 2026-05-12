@@ -131,8 +131,8 @@ decssy/
 This project is built incrementally across 10 plans. Each plan ships working, testable software.
 
 1. ✅ Foundation & Auth ([plans/01-foundation-auth.md](./plans/01-foundation-auth.md))
-2. ✅ **Onboarding & Groups** ([plans/02-onboarding-groups.md](./plans/02-onboarding-groups.md)) — current
-3. ⬜ Invites & QR Sharing
+2. ✅ Onboarding & Groups ([plans/02-onboarding-groups.md](./plans/02-onboarding-groups.md))
+3. ✅ **Invites & QR Sharing** ([plans/03-invites-qr.md](./plans/03-invites-qr.md)) — current
 4. ⬜ Events & RSVP (one-off)
 5. ⬜ Calendar UI
 6. ⬜ Event Detail & Comments
@@ -154,6 +154,8 @@ This project is built incrementally across 10 plans. Each plan ships working, te
 | TypeScript can't find `api.users.getCurrentUser` | Generated API is stale | Run `npx convex dev --once` to regenerate |
 | Onboarding redirect loop | `decssy_onboarded` cookie missing/cleared | Re-complete onboarding once, OR set `document.cookie = "decssy_onboarded=1; path=/"` in DevTools and refresh |
 | Plan 2 e2e tests all skip | Test browser isn't signed in | Either sign in manually once via http://localhost:3002, or skip with `SKIP_AUTH_TESTS=1` |
+| QR code stays "Generating QR…" forever | Convex `qr` action not deployed | Run `npx convex dev --once`; the action lives at `convex/qr.ts` ("use node" runtime) |
+| Invite link callback `redirect_uri_mismatch` | Forgot to register the new domain in Google OAuth | Add the prod URL to "Authorized JavaScript origins"; Convex callback URL stays `.convex.site` |
 
 ---
 
