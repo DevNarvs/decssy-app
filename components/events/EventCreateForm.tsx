@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { EventType } from "@/convex/lib/enums";
 import { EventTypeSelector } from "./EventTypeSelector";
+import { RecurrenceSelector } from "./RecurrenceSelector";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -50,6 +51,9 @@ export function EventCreateForm({ groupId }: Props) {
   const [startLocal, setStartLocal] = useState(toLocalInputValue(defaultStart));
   const [endLocal, setEndLocal] = useState(toLocalInputValue(defaultEnd));
   const [allDayDate, setAllDayDate] = useState(toDateInputValue(defaultStart));
+  const [recurrenceRule, setRecurrenceRule] = useState<string | undefined>(
+    undefined,
+  );
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -90,6 +94,7 @@ export function EventCreateForm({ groupId }: Props) {
         startUtc,
         endUtc,
         eventTimezone: tz,
+        recurrenceRule,
       });
       router.push(`/groups/${groupId}/events/${eventId}`);
     } catch (err) {
@@ -191,6 +196,12 @@ export function EventCreateForm({ groupId }: Props) {
           </div>
         </>
       )}
+
+      <RecurrenceSelector
+        value={recurrenceRule}
+        onChange={setRecurrenceRule}
+        disabled={isSubmitting}
+      />
 
       <div className="flex flex-col gap-1.5">
         <label

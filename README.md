@@ -134,9 +134,9 @@ This project is built incrementally across 10 plans. Each plan ships working, te
 2. ✅ Onboarding & Groups ([plans/02-onboarding-groups.md](./plans/02-onboarding-groups.md))
 3. ✅ Invites & QR Sharing ([plans/03-invites-qr.md](./plans/03-invites-qr.md))
 4. ✅ Events & RSVP (one-off) ([plans/04-events-rsvp.md](./plans/04-events-rsvp.md))
-5. ✅ **Calendar UI** ([plans/05-calendar-ui.md](./plans/05-calendar-ui.md)) — current
+5. ✅ Calendar UI ([plans/05-calendar-ui.md](./plans/05-calendar-ui.md))
 6. ⬜ Event Detail & Comments (merged into Plan 4)
-7. ⬜ Recurring Events
+7. ✅ **Recurring Events** ([plans/07-recurring-events.md](./plans/07-recurring-events.md)) — current (single-series edit; per-instance overrides deferred to Plan 10)
 8. ⬜ Find Free Day
 9. ⬜ Notifications
 10. ⬜ Polish & Launch

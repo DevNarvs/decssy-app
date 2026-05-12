@@ -81,6 +81,7 @@ export default defineSchema({
     startUtc: v.number(),
     endUtc: v.number(),
     eventTimezone: v.string(), // IANA — see PRD §14.2 for why all-day events need this
+    recurrenceRule: v.optional(v.string()), // RFC 5545 RRULE string; undefined = one-off
     createdBy: v.id("users"),
     createdAt: v.number(),
     deletedAt: v.optional(v.number()), // soft delete

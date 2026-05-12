@@ -11,6 +11,7 @@ import { EventTimeDisplay } from "@/components/events/EventTimeDisplay";
 import { RsvpControl } from "@/components/events/RsvpControl";
 import { AttendeesList } from "@/components/events/AttendeesList";
 import { CommentThread } from "@/components/events/CommentThread";
+import { RecurrenceBadge } from "@/components/events/RecurrenceBadge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +112,14 @@ export default function EventDetailPage({ params }: PageProps) {
           <p className="mt-1 text-sm text-text-muted">
             <EventTimeDisplay event={event} />
           </p>
+          {event.recurrenceRule && (
+            <div className="mt-2 inline-flex">
+              <RecurrenceBadge
+                rule={event.recurrenceRule}
+                startDate={new Date(event.startUtc)}
+              />
+            </div>
+          )}
           {event.description && (
             <p className="mt-3 whitespace-pre-wrap text-md text-text">
               {event.description}

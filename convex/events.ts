@@ -10,6 +10,7 @@ import { mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { requireMember, requireUser } from "./lib/permissions";
+import { expandOccurrences } from "./lib/recurrence";
 
 const TITLE_MIN = 1;
 const TITLE_MAX = 100;
@@ -60,6 +61,7 @@ export const createEvent = mutation({
     startUtc: v.number(),
     endUtc: v.number(),
     eventTimezone: v.string(),
+    recurrenceRule: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireMember(ctx, args.groupId);
@@ -75,6 +77,7 @@ export const createEvent = mutation({
       startUtc: args.startUtc,
       endUtc: args.endUtc,
       eventTimezone: args.eventTimezone,
+      recurrenceRule: args.recurrenceRule,
       createdBy: userId,
       createdAt: now,
     });
@@ -122,18 +125,22 @@ export const listGroupEvents = query({
       .unique();
     if (!membership) return null;
 
-    const events = await ctx.db
+    // Fetch all events for the group (the by_group_and_start lower-bound
+    // would miss recurring events whose original start is before rangeStart
+    // but which still have occurrences in range). For MVP we collect all
+    // non-deleted events and let expandOccurrences filter — fine up to
+    // PRD's per-group event cap.
+    const rawEvents = await ctx.db
       .query("events")
-      .withIndex("by_group_and_start", (q) =>
-        q.eq("groupId", groupId).gte("startUtc", rangeStart),
-      )
+      .withIndex("by_group", (q) => q.eq("groupId", groupId))
       .collect();
 
-    return events
-      .filter(
-        (e) => e.deletedAt === undefined && e.startUtc <= rangeEnd,
-      )
-      .sort((a, b) => a.startUtc - b.startUtc);
+    const expanded: Doc<"events">[] = [];
+    for (const e of rawEvents) {
+      if (e.deletedAt !== undefined) continue;
+      expanded.push(...expandOccurrences(e, rangeStart, rangeEnd));
+    }
+    return expanded.sort((a, b) => a.startUtc - b.startUtc);
   },
 });
 
@@ -155,19 +162,22 @@ export const listUpcomingEventsInGroup = query({
     if (!membership) return null;
 
     const now = Date.now();
-    const all = await ctx.db
+    // Expand into a forward 1-year window so recurring events show up.
+    const lookahead = now + 365 * 24 * 60 * 60 * 1000;
+    const raw = await ctx.db
       .query("events")
-      .withIndex("by_group_and_start", (q) =>
-        q.eq("groupId", groupId).gte("startUtc", now),
-      )
+      .withIndex("by_group", (q) => q.eq("groupId", groupId))
       .collect();
 
-    const upcoming = all
-      .filter((e) => e.deletedAt === undefined)
+    const expanded: Doc<"events">[] = [];
+    for (const e of raw) {
+      if (e.deletedAt !== undefined) continue;
+      expanded.push(...expandOccurrences(e, now, lookahead));
+    }
+
+    return expanded
       .sort((a, b) => a.startUtc - b.startUtc)
       .slice(0, limit ?? 5);
-
-    return upcoming;
   },
 });
 
@@ -216,21 +226,21 @@ export const listMyEventsInRange = query({
     }> = [];
 
     for (const gid of memberGroupIds) {
-      const events = await ctx.db
+      const raw = await ctx.db
         .query("events")
-        .withIndex("by_group_and_start", (q) =>
-          q.eq("groupId", gid).gte("startUtc", rangeStart),
-        )
+        .withIndex("by_group", (q) => q.eq("groupId", gid))
         .collect();
-      for (const e of events) {
+      for (const e of raw) {
         if (e.deletedAt !== undefined) continue;
-        if (e.startUtc > rangeEnd) continue;
-        const g = groupsById.get(e.groupId.toString());
-        enriched.push({
-          event: e,
-          groupColor: g?.color ?? "#9CA3AF",
-          groupName: g?.name ?? "Unknown",
-        });
+        const instances = expandOccurrences(e, rangeStart, rangeEnd);
+        for (const inst of instances) {
+          const g = groupsById.get(inst.groupId.toString());
+          enriched.push({
+            event: inst,
+            groupColor: g?.color ?? "#9CA3AF",
+            groupName: g?.name ?? "Unknown",
+          });
+        }
       }
     }
 
