@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Settings } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -21,6 +21,7 @@ import { CalendarDays } from "lucide-react";
 
 export default function CalendarPage() {
   const router = useRouter();
+  const ensurePersonalGroup = useMutation(api.users.ensurePersonalGroup);
 
   // 1) Pending-invite redirect (from Plan 3). Runs once on mount.
   useEffect(() => {
@@ -29,6 +30,15 @@ export default function CalendarPage() {
       router.replace(`/join/${token}/accept`);
     }
   }, [router]);
+
+  // 1a) Auto-create "My Schedule" personal group on first visit if user has
+  // zero groups. Idempotent — no-op if any group membership already exists.
+  // Removes the "you have to create a group before you can schedule" friction.
+  useEffect(() => {
+    ensurePersonalGroup({}).catch((err) =>
+      console.warn("ensurePersonalGroup failed:", err),
+    );
+  }, [ensurePersonalGroup]);
 
   // 2) Current visible month + selected date (both default to today).
   const [today] = useState(() => new Date());
