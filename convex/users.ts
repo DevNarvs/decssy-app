@@ -25,6 +25,42 @@ export const getCurrentUser = query({
 });
 
 /**
+ * Idempotent: ensure the user has at least one group they can add events
+ * to. If the user is in zero groups (fresh account or deleted everything),
+ * create a "My Schedule" personal group for them so the calendar tab is
+ * usable without manual setup.
+ *
+ * Safe to call on every /calendar mount — the membership check is O(1)
+ * via the by_user index.
+ */
+export const ensurePersonalGroup = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return null;
+
+    const existingMembership = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (existingMembership) return null;
+
+    const groupId = await ctx.db.insert("groups", {
+      name: "My Schedule",
+      color: "#8B5CF6", // violet — feels personal vs. social-group colors
+      ownerId: userId,
+      createdAt: Date.now(),
+    });
+    await ctx.db.insert("groupMembers", {
+      groupId,
+      userId,
+      joinedAt: Date.now(),
+    });
+    return groupId;
+  },
+});
+
+/**
  * Idempotent mutation to persist the user's timezone on their row.
  * Called once on first authenticated render, using the browser's IANA
  * timezone (Intl.DateTimeFormat().resolvedOptions().timeZone). Subsequent
