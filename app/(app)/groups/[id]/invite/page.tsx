@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 import { api } from "@/convex/_generated/api";
@@ -18,6 +19,7 @@ interface PageProps {
 export default function GroupInvitePage({ params }: PageProps) {
   const { id } = use(params);
   const groupId = id as Id<"groups">;
+  const router = useRouter();
   const detail = useQuery(api.groups.getGroup, { groupId });
   const invites = useQuery(api.invites.listGroupInvites, { groupId });
   const createInvite = useMutation(api.invites.createInvite);
@@ -28,14 +30,23 @@ export default function GroupInvitePage({ params }: PageProps) {
   );
 
   // Personal-default groups ("My Schedule") can't have invites — bounce away
-  // before the auto-create useEffect fires. Done as an effect (not a render-
-  // time redirect) so server-rendered HTML stays consistent with client.
+  // before the auto-create useEffect fires. router.replace (soft nav) avoids
+  // Chrome's "Blocked beforeunload" intervention that window.location triggers.
   const isPersonalDefault = detail?.group.isPersonalDefault === true;
   useEffect(() => {
     if (isPersonalDefault) {
-      window.location.href = `/groups/${groupId}`;
+      router.replace(`/groups/${groupId}`);
     }
-  }, [isPersonalDefault, groupId]);
+  }, [isPersonalDefault, groupId, router]);
+
+  // Non-member or non-owner — bounce to /groups via soft nav rather than
+  // full-page reload (no beforeunload intervention).
+  const isInaccessible = detail === null || invites === null;
+  useEffect(() => {
+    if (isInaccessible) {
+      router.replace("/groups");
+    }
+  }, [isInaccessible, router]);
 
   // Auto-create an invite on first load if none exist; otherwise pick the most
   // recent one as the display target. The "Generate new" button creates a fresh
@@ -68,13 +79,9 @@ export default function GroupInvitePage({ params }: PageProps) {
   }
 
   // getGroup returns null if not a member; listGroupInvites returns null if
-  // not the owner. Either means we shouldn't be here — bounce to /groups.
-  if (detail === null || invites === null) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/groups";
-    }
-    return null;
-  }
+  // not the owner. Either means we shouldn't be here — the useEffect above
+  // is already redirecting via router.replace; render nothing this frame.
+  if (detail === null || invites === null) return null;
 
   // Use the current origin: dev → localhost, prod → vercel.app. Override
   // by setting NEXT_PUBLIC_APP_URL in .env.local when you need to test the

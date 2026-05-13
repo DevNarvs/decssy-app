@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
@@ -33,6 +33,17 @@ export default function EventDetailPage({ params }: PageProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
+  // Event was deleted, OR the user lost access to its group (removed,
+  // group deleted). Soft-redirect to the group page (or /groups if the
+  // group itself is gone) — router.replace avoids Chrome's beforeunload
+  // intervention that the old window.location.href triggered.
+  const isInaccessible = detail === null || groupDetail === null;
+  useEffect(() => {
+    if (isInaccessible) {
+      router.replace(groupDetail === null ? "/groups" : `/groups/${groupId}`);
+    }
+  }, [isInaccessible, groupDetail, groupId, router]);
+
   if (detail === undefined || groupDetail === undefined) {
     return (
       <div className="mx-auto max-w-md px-4 pt-safe">
@@ -50,9 +61,7 @@ export default function EventDetailPage({ params }: PageProps) {
   }
 
   if (detail === null || groupDetail === null) {
-    if (typeof window !== "undefined") {
-      window.location.href = `/groups/${groupId}`;
-    }
+    // useEffect above is already redirecting via router.replace.
     return null;
   }
 

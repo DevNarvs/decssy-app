@@ -3,7 +3,14 @@
 import { use } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
-import { ArrowLeft, Settings, Share2, Plus, CalendarDays } from "lucide-react";
+import {
+  ArrowLeft,
+  Settings,
+  Share2,
+  Plus,
+  CalendarDays,
+  LockKeyhole,
+} from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { GroupHero } from "@/components/groups/GroupHero";
@@ -41,12 +48,41 @@ export default function GroupDetailPage({ params }: PageProps) {
   }
 
   if (detail === null) {
-    // Group was deleted, or you were removed. The DangerZone usually
-    // navigates first, but if we get here directly, redirect gracefully.
-    if (typeof window !== "undefined") {
-      window.location.href = "/groups";
-    }
-    return null;
+    // `getGroup` returns null in three cases: the group was deleted, the
+    // signed-in user was removed, or the user was never a member (someone
+    // shared the wrong URL — they pasted /groups/<id> instead of the
+    // /join/<token> invite link).
+    //
+    // Previously we did a silent `window.location.href = "/groups"` which
+    // (a) triggered Chrome's "beforeunload intervention" warning in
+    // console, (b) gave the user zero context about what just happened.
+    // Now we render an explicit empty state so they know how to recover.
+    return (
+      <div className="mx-auto max-w-md px-4 pt-safe pb-12">
+        <header className="flex items-center gap-3 py-4">
+          <Link
+            href="/groups"
+            aria-label="Back to groups"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-text-muted hover:text-text"
+          >
+            <ArrowLeft size={16} strokeWidth={1.5} />
+          </Link>
+          <h2 className="flex-1 text-lg font-extrabold tracking-tight text-text">
+            Group not available
+          </h2>
+        </header>
+        <EmptyState
+          icon={<LockKeyhole size={24} strokeWidth={1.5} />}
+          title="You're not in this group"
+          description={
+            "Either this group was deleted, you were removed, or you opened a group URL without an invite. " +
+            "If you have an invite link (looks like /join/…), open that instead — it'll add you to the group."
+          }
+          cta={{ label: "Back to my groups", href: "/groups" }}
+          className="my-8"
+        />
+      </div>
+    );
   }
 
   return (
