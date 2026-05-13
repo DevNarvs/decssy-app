@@ -21,7 +21,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
-import { Share2, AlertCircle } from "lucide-react";
+import { Share2, AlertCircle, Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -53,7 +53,14 @@ export function EventShareDialog({
   const ensureInvite = useMutation(api.invites.ensureActiveInvite);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const [inviteAttempted, setInviteAttempted] = useState(false);
+  // Tri-state: "pending" while we figure out the URL (mutation in flight),
+  // "invite" when we got a token, "direct" when we skipped/failed and are
+  // using the direct event URL. Crucial for showing the user *why* — the
+  // initial flash of the direct URL while pending was confusing.
+  const [inviteState, setInviteState] = useState<"pending" | "invite" | "direct">(
+    "pending",
+  );
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   const baseUrl = getShareBaseUrl();
@@ -66,23 +73,48 @@ export function EventShareDialog({
   // Recoverable failure: just fall back to the direct URL — recipients
   // still get a useful link if they're already group members.
   useEffect(() => {
-    if (!open || inviteAttempted) return;
-    if (!isOwner || isPersonalDefault) {
-      setInviteAttempted(true);
+    if (!open) return;
+    if (inviteState !== "pending") return; // already resolved this open
+
+    // Eligibility short-circuit: only group owners can mint invites, and
+    // personal-default groups can't be shared externally regardless.
+    if (!isOwner) {
+      setInviteState("direct");
+      setInviteError(
+        "Only the group owner can generate links that work for non-members.",
+      );
       return;
     }
-    setInviteAttempted(true);
+    if (isPersonalDefault) {
+      setInviteState("direct");
+      setInviteError(
+        "Personal schedule groups can't be shared externally — they're solo by design.",
+      );
+      return;
+    }
+
     ensureInvite({ groupId })
-      .then((token) => setInviteToken(token))
+      .then((token) => {
+        setInviteToken(token);
+        setInviteState("invite");
+      })
       .catch((err) => {
         console.warn("ensureActiveInvite failed:", err);
-        // direct-link fallback already set
+        setInviteState("direct");
+        setInviteError(
+          err instanceof Error
+            ? err.message
+            : "Couldn't generate an invite-backed link; sharing the direct URL instead.",
+        );
       });
-  }, [open, inviteAttempted, isOwner, isPersonalDefault, ensureInvite, groupId]);
+  }, [open, inviteState, isOwner, isPersonalDefault, ensureInvite, groupId]);
 
-  // Generate QR whenever the URL is finalized (could be direct or invite-backed).
+  // Generate QR only AFTER invite resolution settles — otherwise the QR
+  // would render the direct URL momentarily before regenerating for the
+  // invite URL, which both looks broken and wastes a Convex action call.
   useEffect(() => {
     if (!open) return;
+    if (inviteState === "pending") return; // wait for resolution
     closeRef.current?.focus();
     let cancelled = false;
     generate({ data: url })
@@ -109,7 +141,8 @@ export function EventShareDialog({
     if (!open) {
       setQrSvg(null);
       setInviteToken(null);
-      setInviteAttempted(false);
+      setInviteState("pending");
+      setInviteError(null);
     }
   }, [open]);
 
@@ -131,7 +164,8 @@ export function EventShareDialog({
 
   if (!open) return null;
 
-  const isInviteBacked = inviteToken !== null;
+  const isInviteBacked = inviteState === "invite";
+  const isResolving = inviteState === "pending";
 
   return (
     <div
@@ -154,7 +188,9 @@ export function EventShareDialog({
           Share event
         </h2>
         <p className="mb-4 text-sm text-text-muted">
-          {isInviteBacked ? (
+          {isResolving ? (
+            <>Preparing share link…</>
+          ) : isInviteBacked ? (
             <>
               Anyone with this link can join{" "}
               <span className="text-text">{eventTitle}</span> — they'll be
@@ -172,7 +208,9 @@ export function EventShareDialog({
 
         <div className="flex flex-col items-center gap-4">
           <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-bg">
-            {qrSvg ? (
+            {isResolving ? (
+              <Loader2 size={24} className="animate-spin text-accent" />
+            ) : qrSvg ? (
               <div
                 className="h-full w-full [&_svg]:h-full [&_svg]:w-full"
                 // eslint-disable-next-line react/no-danger
@@ -197,22 +235,23 @@ export function EventShareDialog({
                 id="event-share-url"
                 type="text"
                 readOnly
-                value={url}
-                onClick={(e) => e.currentTarget.select()}
-                className="h-9 min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-sm text-text-muted"
+                value={isResolving ? "Preparing…" : url}
+                onClick={(e) => !isResolving && e.currentTarget.select()}
+                disabled={isResolving}
+                className="h-9 min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-sm text-text-muted disabled:opacity-60"
               />
               <CopyButton value={url} />
             </div>
           </div>
 
-          {!isInviteBacked && !isOwner && (
+          {inviteError && (
             <div className="flex w-full items-start gap-2 rounded-md border border-maybe/30 bg-maybe/10 px-3 py-2 text-xs text-text-muted">
-              <AlertCircle size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-maybe" />
-              <span>
-                Only the group owner can generate links that work for people
-                outside the group. Ask them to send a group invite if you
-                want to add new members.
-              </span>
+              <AlertCircle
+                size={14}
+                strokeWidth={2}
+                className="mt-0.5 shrink-0 text-maybe"
+              />
+              <span>{inviteError}</span>
             </div>
           )}
 
@@ -220,8 +259,10 @@ export function EventShareDialog({
             <button
               type="button"
               onClick={handleNativeShare}
+              disabled={isResolving}
               className={cn(
                 "flex h-11 w-full items-center justify-center gap-2 rounded-md bg-accent text-md font-extrabold text-white shadow-fab transition-colors hover:bg-accent/90",
+                "disabled:cursor-not-allowed disabled:opacity-60",
               )}
             >
               <Share2 size={16} strokeWidth={1.5} />
