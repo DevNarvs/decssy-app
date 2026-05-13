@@ -16,7 +16,7 @@
  */
 import { use, useEffect, useState } from "react";
 import { useMutation } from "convex/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, AlertCircle, Info } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -39,9 +39,17 @@ interface AcceptResult {
 export default function AcceptInvitePage({ params }: PageProps) {
   const { token } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const acceptInvite = useMutation(api.invites.acceptInvite);
   const [result, setResult] = useState<AcceptResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Optional override for where to land after joining — used by event-share
+  // links that thread `/groups/<id>/events/<eid>` through the join flow.
+  // Validated to be an in-app absolute path to prevent open-redirect.
+  const rawNext = searchParams?.get("next") ?? null;
+  const next =
+    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -143,13 +151,13 @@ export default function AcceptInvitePage({ params }: PageProps) {
         </div>
         <button
           type="button"
-          onClick={() => router.replace(`/groups/${r.groupId}`)}
+          onClick={() => router.replace(next ?? `/groups/${r.groupId}`)}
           className={cn(
             "mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-accent text-md font-extrabold text-white shadow-fab transition-colors",
             "hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
           )}
         >
-          Open group
+          {next ? "Continue" : "Open group"}
         </button>
       </WelcomeCard>
     );
@@ -170,7 +178,9 @@ export default function AcceptInvitePage({ params }: PageProps) {
             Joined {r.groupName}
           </div>
           <div className="mt-0.5 text-sm text-text-muted">
-            You can now see this group's events on your calendar.
+            {next
+              ? "You can now open the event you were invited to."
+              : "You can now see this group's events on your calendar."}
           </div>
         </div>
       </div>
@@ -184,13 +194,13 @@ export default function AcceptInvitePage({ params }: PageProps) {
         </button>
         <button
           type="button"
-          onClick={() => router.replace(`/groups/${r.groupId}`)}
+          onClick={() => router.replace(next ?? `/groups/${r.groupId}`)}
           className={cn(
             "flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-accent text-md font-extrabold text-white shadow-fab transition-colors",
             "hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
           )}
         >
-          Open group
+          {next ? "Continue" : "Open group"}
         </button>
       </div>
     </WelcomeCard>

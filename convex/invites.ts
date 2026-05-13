@@ -17,6 +17,63 @@ const DEFAULT_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_ACTIVE_INVITES_PER_GROUP = 5;
 
 /**
+ * Owner-only convenience: returns an active invite token for the group,
+ * creating one if none exist. Used by EventShareDialog so event-share
+ * links can route recipients through the join flow if they aren't already
+ * group members.
+ *
+ * Reuses the most-recently-created active invite (no extra noise in the
+ * invites list); falls through to createInvite's caps + personal-group
+ * guards when a new one is needed.
+ */
+export const ensureActiveInvite = mutation({
+  args: { groupId: v.id("groups") },
+  handler: async (ctx, { groupId }) => {
+    const userId = await requireOwner(ctx, groupId);
+    const group = await ctx.db.get(groupId);
+    if (group?.isPersonalDefault === true) {
+      throw new Error(
+        "Personal schedule groups can't generate share links — they're solo-only.",
+      );
+    }
+
+    const now = Date.now();
+    const all = await ctx.db
+      .query("groupInvites")
+      .withIndex("by_group", (q) => q.eq("groupId", groupId))
+      .collect();
+    const active = all
+      .filter(
+        (i) =>
+          i.revokedAt === undefined &&
+          i.expiresAt > now &&
+          (i.maxUses === undefined || i.usedCount < i.maxUses),
+      )
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    if (active.length > 0 && active[0]) return active[0].token;
+
+    if (all.filter((i) => i.revokedAt === undefined && i.expiresAt > now).length >= MAX_ACTIVE_INVITES_PER_GROUP) {
+      throw new Error(
+        `Max ${MAX_ACTIVE_INVITES_PER_GROUP} active invites per group — revoke an old one first.`,
+      );
+    }
+
+    const inviteId = await ctx.db.insert("groupInvites", {
+      groupId,
+      token: generateInviteToken(),
+      createdBy: userId,
+      createdAt: now,
+      expiresAt: now + DEFAULT_EXPIRY_MS,
+      maxUses: undefined,
+      usedCount: 0,
+    });
+    const created = await ctx.db.get(inviteId);
+    return created!.token;
+  },
+});
+
+/**
  * Owner-only: create a new invite token for the group.
  * Caps active invites per group at 5 to keep the dashboard manageable.
  */

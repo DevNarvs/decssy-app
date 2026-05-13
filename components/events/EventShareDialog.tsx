@@ -4,12 +4,24 @@
  * Event-level share dialog.
  *
  * Shows a QR code + copyable link + native-share button for a specific
- * event. The link routes to the event detail page; group members open it
- * straight, non-members hit the auth flow first.
+ * event. Two URL strategies depending on whether the sharer can grant
+ * outsiders access to the group:
+ *
+ *   1. **Invite-backed link** (group owner, non-personal group): the URL
+ *      routes through `/join/<token>?next=/groups/<id>/events/<eid>`.
+ *      Recipients who aren't yet in the group go through the join flow
+ *      and land on the event; recipients who are already in flow straight
+ *      through. Works universally — this is the default.
+ *
+ *   2. **Direct event link** (non-owner, or invite creation failed): the
+ *      URL is just `/groups/<id>/events/<eid>`. Only group members can
+ *      open it; outsiders see the "you're not in this group" empty state.
+ *      The dialog tells the user this so they know to send a separate
+ *      group invite if needed.
  */
 import { useEffect, useRef, useState } from "react";
-import { useAction } from "convex/react";
-import { Share2 } from "lucide-react";
+import { useAction, useMutation } from "convex/react";
+import { Share2, AlertCircle } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -20,6 +32,10 @@ interface Props {
   groupId: Id<"groups">;
   eventId: Id<"events">;
   eventTitle: string;
+  /** True if the current user owns this group — invite-backed share is available. */
+  isOwner: boolean;
+  /** True if this is the auto-created "My Schedule" personal group; cannot be shared. */
+  isPersonalDefault: boolean;
   open: boolean;
   onClose: () => void;
 }
@@ -28,18 +44,43 @@ export function EventShareDialog({
   groupId,
   eventId,
   eventTitle,
+  isOwner,
+  isPersonalDefault,
   open,
   onClose,
 }: Props) {
   const generate = useAction(api.qr.generate);
+  const ensureInvite = useMutation(api.invites.ensureActiveInvite);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteAttempted, setInviteAttempted] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  // Origin-based: dev shares point to localhost, prod shares point to the
-  // Vercel domain. Override with NEXT_PUBLIC_APP_URL in .env.local when you
-  // need to mimic a different origin for cross-environment testing.
-  const url = `${getShareBaseUrl()}/groups/${groupId}/events/${eventId}`;
+  const baseUrl = getShareBaseUrl();
+  const directPath = `/groups/${groupId}/events/${eventId}`;
+  const url = inviteToken
+    ? `${baseUrl}/join/${inviteToken}?next=${encodeURIComponent(directPath)}`
+    : `${baseUrl}${directPath}`;
 
+  // Try to get an invite token on open (owner only, non-personal group).
+  // Recoverable failure: just fall back to the direct URL — recipients
+  // still get a useful link if they're already group members.
+  useEffect(() => {
+    if (!open || inviteAttempted) return;
+    if (!isOwner || isPersonalDefault) {
+      setInviteAttempted(true);
+      return;
+    }
+    setInviteAttempted(true);
+    ensureInvite({ groupId })
+      .then((token) => setInviteToken(token))
+      .catch((err) => {
+        console.warn("ensureActiveInvite failed:", err);
+        // direct-link fallback already set
+      });
+  }, [open, inviteAttempted, isOwner, isPersonalDefault, ensureInvite, groupId]);
+
+  // Generate QR whenever the URL is finalized (could be direct or invite-backed).
   useEffect(() => {
     if (!open) return;
     closeRef.current?.focus();
@@ -63,6 +104,15 @@ export function EventShareDialog({
     };
   }, [open, url, generate, onClose]);
 
+  // Reset state when dialog closes so a subsequent open re-fetches fresh.
+  useEffect(() => {
+    if (!open) {
+      setQrSvg(null);
+      setInviteToken(null);
+      setInviteAttempted(false);
+    }
+  }, [open]);
+
   async function handleNativeShare() {
     if (typeof navigator === "undefined" || !navigator.share) return;
     try {
@@ -80,6 +130,8 @@ export function EventShareDialog({
     typeof navigator !== "undefined" && "share" in navigator;
 
   if (!open) return null;
+
+  const isInviteBacked = inviteToken !== null;
 
   return (
     <div
@@ -102,10 +154,20 @@ export function EventShareDialog({
           Share event
         </h2>
         <p className="mb-4 text-sm text-text-muted">
-          Anyone in this group can open the link.{" "}
-          <span className="text-text">
-            People outside the group need an invite first.
-          </span>
+          {isInviteBacked ? (
+            <>
+              Anyone with this link can join{" "}
+              <span className="text-text">{eventTitle}</span> — they'll be
+              added to the group when they open it.
+            </>
+          ) : (
+            <>
+              Only current group members can open this link.{" "}
+              <span className="text-text">
+                Outsiders need a group invite first.
+              </span>
+            </>
+          )}
         </p>
 
         <div className="flex flex-col items-center gap-4">
@@ -142,6 +204,17 @@ export function EventShareDialog({
               <CopyButton value={url} />
             </div>
           </div>
+
+          {!isInviteBacked && !isOwner && (
+            <div className="flex w-full items-start gap-2 rounded-md border border-maybe/30 bg-maybe/10 px-3 py-2 text-xs text-text-muted">
+              <AlertCircle size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-maybe" />
+              <span>
+                Only the group owner can generate links that work for people
+                outside the group. Ask them to send a group invite if you
+                want to add new members.
+              </span>
+            </div>
+          )}
 
           {canNativeShare && (
             <button

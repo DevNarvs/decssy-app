@@ -5,6 +5,7 @@ import { JoinLandingClient } from "./JoinLandingClient";
 
 interface PageProps {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ next?: string }>;
 }
 
 async function getPreview(token: string) {
@@ -51,8 +52,18 @@ export async function generateMetadata({
   };
 }
 
-export default async function JoinLandingPage({ params }: PageProps) {
+export default async function JoinLandingPage({ params, searchParams }: PageProps) {
   const { token } = await params;
+  const { next: rawNext } = await searchParams;
   const preview = await getPreview(token);
-  return <JoinLandingClient token={token} preview={preview} />;
+
+  // Only honor absolute in-app paths to prevent open-redirect to attacker
+  // domains. The fallback (null) means the accept page uses its default
+  // destination (/groups/<id>).
+  const next =
+    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
+      ? rawNext
+      : null;
+
+  return <JoinLandingClient token={token} preview={preview} next={next} />;
 }

@@ -171,6 +171,8 @@ export default function EventDetailPage({ params }: PageProps) {
         groupId={groupId}
         eventId={eventId}
         eventTitle={event.title}
+        isOwner={groupDetail.isOwner}
+        isPersonalDefault={groupDetail.group.isPersonalDefault === true}
         open={shareOpen}
         onClose={() => setShareOpen(false)}
       />

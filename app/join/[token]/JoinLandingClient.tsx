@@ -19,34 +19,39 @@ interface Preview {
 interface Props {
   token: string;
   preview: Preview | null;
+  /** Optional post-accept destination — e.g., event-share links pass
+   *  /groups/<id>/events/<eid> so recipients land on the shared event
+   *  after joining. Null means use the accept page's default. */
+  next: string | null;
 }
 
-export function JoinLandingClient({ token, preview }: Props) {
+export function JoinLandingClient({ token, preview, next: nextProp }: Props) {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useConvexAuth();
+
+  // Accept-page URL with the next destination threaded through.
+  const acceptPath = nextProp
+    ? `/join/${token}/accept?next=${encodeURIComponent(nextProp)}`
+    : `/join/${token}/accept`;
 
   // If we're authenticated, jump straight to /join/[token]/accept which
   // does the join + redirect. If not, store the token for post-auth resume
   // and show the public preview.
   useEffect(() => {
     if (!isLoading && isAuthenticated && preview) {
-      router.replace(`/join/${token}/accept`);
+      router.replace(acceptPath);
     }
-  }, [isLoading, isAuthenticated, preview, router, token]);
+  }, [isLoading, isAuthenticated, preview, router, acceptPath]);
 
-  // Pass `?next=` so the auth flow knows where to land — robust against
-  // localStorage/cookie clearing in some private-browsing modes. The
-  // pending-invite store is kept as a belt-and-suspenders fallback for
-  // any path that loses the query string (e.g., user types email/password
-  // without clicking the link, then ends up at /calendar afterwards).
-  const next = `/join/${token}/accept`;
+  // Pass the accept path as `?next=` to the auth pages so OAuth lands
+  // directly at /accept (preserving the inner `next` for event-share links).
   function handleSignIn() {
     setPendingInvite(token);
-    router.push(`/sign-in?next=${encodeURIComponent(next)}`);
+    router.push(`/sign-in?next=${encodeURIComponent(acceptPath)}`);
   }
   function handleSignUp() {
     setPendingInvite(token);
-    router.push(`/sign-up?next=${encodeURIComponent(next)}`);
+    router.push(`/sign-up?next=${encodeURIComponent(acceptPath)}`);
   }
 
   if (!preview) {
