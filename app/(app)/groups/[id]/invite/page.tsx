@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { InviteShareCard } from "@/components/groups/InviteShareCard";
 import { ActiveInvitesList } from "@/components/groups/ActiveInvitesList";
-import { env } from "@/lib/env";
+import { getShareBaseUrl } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
 interface PageProps {
@@ -76,10 +76,10 @@ export default function GroupInvitePage({ params }: PageProps) {
     return null;
   }
 
-  // Use the configured app URL (defaults to the prod Vercel URL) instead
-  // of window.location.origin, so invite links shared from local dev still
-  // point to prod and recipients can actually open them.
-  const baseUrl = env.NEXT_PUBLIC_APP_URL;
+  // Use the current origin: dev → localhost, prod → vercel.app. Override
+  // by setting NEXT_PUBLIC_APP_URL in .env.local when you need to test the
+  // receive flow with a different origin.
+  const baseUrl = getShareBaseUrl();
 
   const displayInvite: Doc<"groupInvites"> | undefined =
     invites.find((i) => i._id === currentInviteId) ?? invites[0];

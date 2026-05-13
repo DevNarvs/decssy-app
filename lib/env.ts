@@ -23,13 +23,34 @@ export const env = {
     process.env.NEXT_PUBLIC_CONVEX_URL,
   ),
 
-  // Public app URL — used for share links (event invites, group invites).
-  //
-  // Default is the production Vercel URL so share links work even when
-  // generated from local dev (recipients open the prod app, not localhost).
-  // Override in .env.local with `NEXT_PUBLIC_APP_URL=http://localhost:3002`
-  // if you specifically want share links to point to your local dev (rare
-  // — usually only useful when testing the receive-side flow locally).
-  NEXT_PUBLIC_APP_URL:
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://decssy-app.vercel.app",
+  // Optional override for share-link base URL. When unset, share components
+  // fall back to `window.location.origin` via `getShareBaseUrl()` below —
+  // so dev shares point to localhost and prod shares point to the Vercel
+  // domain automatically. Set this in `.env.local` only when you need to
+  // mimic a different origin (e.g., generate prod-style links while
+  // developing locally to test the receive flow).
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
 };
+
+/**
+ * Resolves the base URL used to construct share links (QR codes, copy-link,
+ * native share). Resolution order:
+ *
+ *   1. `NEXT_PUBLIC_APP_URL` env var, if set — manual override for testing
+ *      the receive flow across environments.
+ *   2. `window.location.origin` in the browser — gives the correct origin
+ *      automatically: localhost during `npm run dev`, vercel.app on prod.
+ *   3. The Vercel prod URL as a server-side fallback. Share dialogs are
+ *      client-only so this branch is essentially unreachable; it exists
+ *      only so server-rendered HTML doesn't crash if someone imports this
+ *      during SSR.
+ */
+export function getShareBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return "https://decssy-app.vercel.app";
+}
