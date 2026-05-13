@@ -21,13 +21,9 @@ export function CreateEventFAB({ groups }: Props) {
       router.push("/groups/new");
       return;
     }
-    if (groups.length === 1) {
-      const onlyGroup = groups[0];
-      if (onlyGroup) {
-        router.push(`/groups/${onlyGroup._id}/events/new`);
-        return;
-      }
-    }
+    // Always show the picker, even when there's only one group — explicit
+    // beats implicit. (Previously auto-routed when groups.length === 1;
+    // users found that surprising because the app appeared to guess.)
     setPickerOpen(true);
   }
 
