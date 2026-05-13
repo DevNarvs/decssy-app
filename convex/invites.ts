@@ -28,6 +28,16 @@ export const createInvite = mutation({
   handler: async (ctx, { groupId, maxUses }) => {
     const userId = await requireOwner(ctx, groupId);
 
+    // Personal default groups ("My Schedule") are single-user by design —
+    // their entire point is private scheduling. Block invite creation on
+    // the server so direct URL navigation can't bypass the hidden UI.
+    const group = await ctx.db.get(groupId);
+    if (group?.isPersonalDefault === true) {
+      throw new Error(
+        "This is your personal schedule — create a new group to invite people.",
+      );
+    }
+
     const now = Date.now();
     const all = await ctx.db
       .query("groupInvites")

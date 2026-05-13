@@ -39,6 +39,28 @@ export const ensurePersonalGroup = mutation({
     const userId = await getAuthUserId(ctx);
     if (userId === null) return null;
 
+    // Backfill: if the user has a "My Schedule" group they own where they're
+    // the only member but the isPersonalDefault flag isn't set (auto-created
+    // before the flag existed), patch it now. Cheap idempotent fixup.
+    const ownedGroups = await ctx.db
+      .query("groups")
+      .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+      .collect();
+    for (const g of ownedGroups) {
+      if (g.isPersonalDefault === true) continue;
+      if (g.name !== "My Schedule") continue;
+      const memberCount = (
+        await ctx.db
+          .query("groupMembers")
+          .withIndex("by_group", (q) => q.eq("groupId", g._id))
+          .collect()
+      ).length;
+      if (memberCount === 1) {
+        await ctx.db.patch(g._id, { isPersonalDefault: true });
+      }
+    }
+
+    // Skip creation if user is already in any group.
     const existingMembership = await ctx.db
       .query("groupMembers")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -50,6 +72,7 @@ export const ensurePersonalGroup = mutation({
       color: "#8B5CF6", // violet — feels personal vs. social-group colors
       ownerId: userId,
       createdAt: Date.now(),
+      isPersonalDefault: true,
     });
     await ctx.db.insert("groupMembers", {
       groupId,

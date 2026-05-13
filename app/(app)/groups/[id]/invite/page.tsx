@@ -27,11 +27,22 @@ export default function GroupInvitePage({ params }: PageProps) {
     null,
   );
 
+  // Personal-default groups ("My Schedule") can't have invites — bounce away
+  // before the auto-create useEffect fires. Done as an effect (not a render-
+  // time redirect) so server-rendered HTML stays consistent with client.
+  const isPersonalDefault = detail?.group.isPersonalDefault === true;
+  useEffect(() => {
+    if (isPersonalDefault) {
+      window.location.href = `/groups/${groupId}`;
+    }
+  }, [isPersonalDefault, groupId]);
+
   // Auto-create an invite on first load if none exist; otherwise pick the most
   // recent one as the display target. The "Generate new" button creates a fresh
   // one and re-targets to it.
   useEffect(() => {
     if (invites === undefined || invites === null) return;
+    if (isPersonalDefault) return; // redirecting; don't create
     if (invites.length === 0 && !isCreating) {
       setIsCreating(true);
       setError(null);
@@ -46,7 +57,7 @@ export default function GroupInvitePage({ params }: PageProps) {
       const first = invites[0];
       if (first) setCurrentInviteId(first._id);
     }
-  }, [invites, currentInviteId, createInvite, groupId, isCreating]);
+  }, [invites, currentInviteId, createInvite, groupId, isCreating, isPersonalDefault]);
 
   if (detail === undefined || invites === undefined) {
     return (

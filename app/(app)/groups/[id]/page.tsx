@@ -79,7 +79,7 @@ export default function GroupDetailPage({ params }: PageProps) {
             isOwner={detail.isOwner}
           />
 
-          {detail.isOwner && (
+          {detail.isOwner && !detail.group.isPersonalDefault && (
             <Link
               href={`/groups/${groupId}/invite`}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-accent text-md font-extrabold text-white shadow-fab transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"

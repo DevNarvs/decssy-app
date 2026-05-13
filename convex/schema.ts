@@ -55,6 +55,11 @@ export default defineSchema({
     color: v.string(),
     ownerId: v.id("users"),
     createdAt: v.number(),
+    // Flag for the auto-created "My Schedule" personal group. When true,
+    // invite/share affordances are hidden (it's a single-user calendar by
+    // design — adding members would defeat the point). Created by
+    // ensurePersonalGroup; never set manually elsewhere.
+    isPersonalDefault: v.optional(v.boolean()),
   }).index("by_owner", ["ownerId"]),
 
   groupMembers: defineTable({
