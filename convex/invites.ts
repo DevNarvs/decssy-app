@@ -160,9 +160,15 @@ export const getInvitePreview = query({
 /**
  * Auth required: signed-in user accepts an invite by token.
  *
- * Returns the joined group's _id on success.
+ * Returns:
+ *   - groupId — the group joined (or already in)
+ *   - groupName, groupColor — for the post-join confirmation UI
+ *   - wasAlreadyMember — true if no insert happened (idempotent re-scan;
+ *     lets the client show "already in" copy instead of "just joined")
+ *   - isOwner — true if the caller is the group's owner (catches the
+ *     "I scanned my own invite as the creator" testing pitfall)
  *
- * Idempotent: already a member? Returns the group id without incrementing
+ * Idempotent: already a member? Returns without inserting / incrementing
  * usedCount. Throws for invalid/expired/revoked/use-reached tokens.
  */
 export const acceptInvite = mutation({
@@ -184,6 +190,8 @@ export const acceptInvite = mutation({
     const group = await ctx.db.get(invite.groupId);
     if (!group) throw new Error("The group for this invite no longer exists");
 
+    const isOwner = group.ownerId === userId;
+
     // Idempotent: already a member?
     const existing = await ctx.db
       .query("groupMembers")
@@ -191,7 +199,15 @@ export const acceptInvite = mutation({
         q.eq("groupId", invite.groupId).eq("userId", userId),
       )
       .unique();
-    if (existing) return invite.groupId;
+    if (existing) {
+      return {
+        groupId: invite.groupId,
+        groupName: group.name,
+        groupColor: group.color,
+        wasAlreadyMember: true,
+        isOwner,
+      };
+    }
 
     await ctx.db.insert("groupMembers", {
       groupId: invite.groupId,
@@ -213,6 +229,12 @@ export const acceptInvite = mutation({
       message: `${actorName} joined "${group.name}"`,
     });
 
-    return invite.groupId;
+    return {
+      groupId: invite.groupId,
+      groupName: group.name,
+      groupColor: group.color,
+      wasAlreadyMember: false,
+      isOwner,
+    };
   },
 });
