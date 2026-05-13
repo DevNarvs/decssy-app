@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, User, Users } from "lucide-react";
+import { ArrowLeft, Trash2, User, Users, Share2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { EventTimeDisplay } from "@/components/events/EventTimeDisplay";
@@ -12,6 +12,7 @@ import { RsvpControl } from "@/components/events/RsvpControl";
 import { AttendeesList } from "@/components/events/AttendeesList";
 import { CommentThread } from "@/components/events/CommentThread";
 import { RecurrenceBadge } from "@/components/events/RecurrenceBadge";
+import { EventShareDialog } from "@/components/events/EventShareDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ export default function EventDetailPage({ params }: PageProps) {
   const groupDetail = useQuery(api.groups.getGroup, { groupId });
   const cancelEvent = useMutation(api.events.cancelEvent);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
   if (detail === undefined || groupDetail === undefined) {
@@ -81,6 +83,14 @@ export default function EventDetailPage({ params }: PageProps) {
         <h2 className="flex-1 truncate text-lg font-extrabold tracking-tight text-text">
           {event.title}
         </h2>
+        <button
+          type="button"
+          onClick={() => setShareOpen(true)}
+          aria-label="Share event"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text"
+        >
+          <Share2 size={16} strokeWidth={1.5} />
+        </button>
         {isCreator && (
           <button
             type="button"
@@ -147,6 +157,14 @@ export default function EventDetailPage({ params }: PageProps) {
           groupColor={groupDetail.group.color}
         />
       </div>
+
+      <EventShareDialog
+        groupId={groupId}
+        eventId={eventId}
+        eventTitle={event.title}
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+      />
 
       <ConfirmDialog
         open={confirmCancel}
