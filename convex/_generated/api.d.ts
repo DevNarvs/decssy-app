@@ -1,0 +1,83 @@
+/* eslint-disable */
+/**
+ * Generated `api` utility.
+ *
+ * THIS CODE IS AUTOMATICALLY GENERATED.
+ *
+ * To regenerate, run `npx convex dev`.
+ * @module
+ */
+
+import type * as auth from "../auth.js";
+import type * as comments from "../comments.js";
+import type * as crons from "../crons.js";
+import type * as email from "../email.js";
+import type * as events from "../events.js";
+import type * as findfree from "../findfree.js";
+import type * as groups from "../groups.js";
+import type * as http from "../http.js";
+import type * as invites from "../invites.js";
+import type * as lib_enums from "../lib/enums.js";
+import type * as lib_groupColors from "../lib/groupColors.js";
+import type * as lib_permissions from "../lib/permissions.js";
+import type * as lib_recurrence from "../lib/recurrence.js";
+import type * as lib_tokens from "../lib/tokens.js";
+import type * as notifications from "../notifications.js";
+import type * as qr from "../qr.js";
+import type * as rsvp from "../rsvp.js";
+import type * as users from "../users.js";
+
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
+declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
+  comments: typeof comments;
+  crons: typeof crons;
+  email: typeof email;
+  events: typeof events;
+  findfree: typeof findfree;
+  groups: typeof groups;
+  http: typeof http;
+  invites: typeof invites;
+  "lib/enums": typeof lib_enums;
+  "lib/groupColors": typeof lib_groupColors;
+  "lib/permissions": typeof lib_permissions;
+  "lib/recurrence": typeof lib_recurrence;
+  "lib/tokens": typeof lib_tokens;
+  notifications: typeof notifications;
+  qr: typeof qr;
+  rsvp: typeof rsvp;
+  users: typeof users;
+}>;
+
+/**
+ * A utility for referencing Convex functions in your app's public API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
+export declare const api: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "public">
+>;
+
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
+export declare const internal: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "internal">
+>;
+
+export declare const components: {};

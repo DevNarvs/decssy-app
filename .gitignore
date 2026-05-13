@@ -41,8 +41,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# convex
-convex/_generated/
+# convex — generated types are committed so Vercel builds work without
+# the CONVEX_DEPLOY_KEY pattern. Regenerated on every `npx convex dev` /
+# `npx convex deploy`. If you change `convex/` source, run a deploy then
+# `git add convex/_generated/` to commit the fresh types.
 
 # IDE
 .vscode/
