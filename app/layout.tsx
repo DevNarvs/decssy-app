@@ -21,6 +21,18 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Decssy",
   },
+  openGraph: {
+    title: "Decssy",
+    description: "A shared calendar for the group chat",
+    images: ["/og-image.png"],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Decssy",
+    description: "A shared calendar for the group chat",
+    images: ["/og-image.png"],
+  },
 };
 
 export const viewport: Viewport = {

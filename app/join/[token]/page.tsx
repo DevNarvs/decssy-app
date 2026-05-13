@@ -39,14 +39,14 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      images: ["/icons/icon-512.png"],
+      images: ["/og-image.png"],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/icons/icon-512.png"],
+      images: ["/og-image.png"],
     },
   };
 }
