@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Users, Mail, ArrowRight } from "lucide-react";
 import { WelcomeCard } from "@/components/onboarding/WelcomeCard";
 import { StepIndicator } from "@/components/onboarding/StepIndicator";
-import { setPendingInvite } from "@/lib/hooks/usePendingInvite";
+import { getPendingInvite, setPendingInvite } from "@/lib/hooks/usePendingInvite";
 import { cn } from "@/lib/utils";
 
 export default function WelcomeStartPage() {
@@ -14,6 +14,17 @@ export default function WelcomeStartPage() {
   const [showInviteInput, setShowInviteInput] = useState(false);
   const [inviteUrl, setInviteUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Defense in depth: if a pending invite is sitting in localStorage (user
+  // scanned a QR before signing up, then completed onboarding via a back-
+  // button path that skipped /welcome/profile's auto-redirect), consume it
+  // before the user can navigate to the wrong place.
+  useEffect(() => {
+    const token = getPendingInvite();
+    if (token) {
+      router.replace(`/join/${token}/accept`);
+    }
+  }, [router]);
 
   function handleInviteSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

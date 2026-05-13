@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { WelcomeCard } from "@/components/onboarding/WelcomeCard";
 import { StepIndicator } from "@/components/onboarding/StepIndicator";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
+import { getPendingInvite } from "@/lib/hooks/usePendingInvite";
 import { cn } from "@/lib/utils";
 
 export default function WelcomeProfilePage() {
@@ -58,7 +59,16 @@ export default function WelcomeProfilePage() {
       await completeOnboarding({ name: trimmedName, timezone });
       // Set the cookie middleware reads to skip onboarding redirects.
       document.cookie = `decssy_onboarded=1; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
-      router.push("/welcome/start");
+
+      // If the user signed up via an invite QR scan or link, they already
+      // chose where they want to go — skip the "what's next?" step and
+      // consume the invite directly. Otherwise show the normal next step.
+      const pending = getPendingInvite();
+      if (pending) {
+        router.push(`/join/${pending}/accept`);
+      } else {
+        router.push("/welcome/start");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setIsSubmitting(false);
