@@ -23,7 +23,13 @@ export const env = {
     process.env.NEXT_PUBLIC_CONVEX_URL,
   ),
 
-  // Public app URL — used for callbacks and shareable links.
+  // Public app URL — used for share links (event invites, group invites).
+  //
+  // Default is the production Vercel URL so share links work even when
+  // generated from local dev (recipients open the prod app, not localhost).
+  // Override in .env.local with `NEXT_PUBLIC_APP_URL=http://localhost:3002`
+  // if you specifically want share links to point to your local dev (rare
+  // — usually only useful when testing the receive-side flow locally).
   NEXT_PUBLIC_APP_URL:
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://decssy-app.vercel.app",
 };

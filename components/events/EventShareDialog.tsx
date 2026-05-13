@@ -13,6 +13,7 @@ import { Share2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { env } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -34,11 +35,10 @@ export function EventShareDialog({
   const [qrSvg, setQrSvg] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  const baseUrl =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://decssy.app";
-  const url = `${baseUrl}/groups/${groupId}/events/${eventId}`;
+  // Share links use the configured app URL (defaults to the prod Vercel URL
+  // — see lib/env.ts), NOT window.location.origin. A share link generated
+  // from localhost still points to prod so recipients can actually open it.
+  const url = `${env.NEXT_PUBLIC_APP_URL}/groups/${groupId}/events/${eventId}`;
 
   useEffect(() => {
     if (!open) return;
