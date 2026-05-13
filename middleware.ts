@@ -32,7 +32,13 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   const isAuthed = await convexAuth.isAuthenticated();
 
   if (isSignInPage(request) && isAuthed) {
-    return nextjsMiddlewareRedirect(request, "/calendar");
+    // Preserve `?next=<path>` for already-authed users who land here via
+    // an invite link's "Sign in instead" button — otherwise their target
+    // would be lost on the way to /calendar. Only absolute paths starting
+    // with "/" are honored, to prevent open-redirect attacks.
+    const next = request.nextUrl.searchParams.get("next");
+    const target = next && next.startsWith("/") ? next : "/calendar";
+    return nextjsMiddlewareRedirect(request, target);
   }
 
   if (isProtectedRoute(request) && !isAuthed) {

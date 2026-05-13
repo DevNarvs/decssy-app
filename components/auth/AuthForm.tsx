@@ -12,7 +12,7 @@
  * surfacing, loading states — is identical.
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
@@ -29,11 +29,20 @@ export function AuthForm({ flow }: AuthFormProps) {
   const { signIn } = useAuthActions();
   const { isAuthenticated } = useConvexAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // `?next=<path>` overrides the default post-auth destination. Used by the
+  // invite landing to send users straight to /join/<token>/accept after
+  // sign-up/sign-in — survives the OAuth round-trip when localStorage and
+  // cookies might not. We only honor absolute paths starting with "/" to
+  // avoid open-redirect to attacker-controlled origins.
+  const rawNext = searchParams?.get("next");
+  const next = rawNext && rawNext.startsWith("/") ? rawNext : "/calendar";
 
   const isBusy = isPasswordLoading || isGoogleLoading;
 
@@ -51,15 +60,15 @@ export function AuthForm({ flow }: AuthFormProps) {
   // succeeded; this effect ignores that noise and still navigates correctly.
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace("/calendar");
+      router.replace(next);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, next]);
 
   async function handleGoogle() {
     setError(null);
     setIsGoogleLoading(true);
     try {
-      await signIn("google", { redirectTo: "/calendar" });
+      await signIn("google", { redirectTo: next });
       // signIn navigates away to Google for OAuth, then back to our callback —
       // code below won't execute on success.
     } catch (err) {

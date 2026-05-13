@@ -34,13 +34,19 @@ export function JoinLandingClient({ token, preview }: Props) {
     }
   }, [isLoading, isAuthenticated, preview, router, token]);
 
+  // Pass `?next=` so the auth flow knows where to land — robust against
+  // localStorage/cookie clearing in some private-browsing modes. The
+  // pending-invite store is kept as a belt-and-suspenders fallback for
+  // any path that loses the query string (e.g., user types email/password
+  // without clicking the link, then ends up at /calendar afterwards).
+  const next = `/join/${token}/accept`;
   function handleSignIn() {
     setPendingInvite(token);
-    router.push("/sign-in");
+    router.push(`/sign-in?next=${encodeURIComponent(next)}`);
   }
   function handleSignUp() {
     setPendingInvite(token);
-    router.push("/sign-up");
+    router.push(`/sign-up?next=${encodeURIComponent(next)}`);
   }
 
   if (!preview) {
