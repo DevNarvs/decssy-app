@@ -5,6 +5,7 @@
  * for readability on tablet/desktop while staying full-bleed comfortable
  * on mobile.
  */
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface AuthCardProps {
@@ -31,8 +32,15 @@ export function AuthCard({
         )}
       >
         {/* Brand */}
-        <div className="mb-6 text-center text-3xl font-extrabold tracking-tight text-text">
-          Decssy<span className="text-accent">.</span>
+        <div className="mb-4 flex justify-center">
+          <Image
+            src="/Decssy-Logo.png"
+            alt="Decssy — a shared calendar for the group chat"
+            width={140}
+            height={140}
+            priority
+            className="h-32 w-32"
+          />
         </div>
 
         <h1 className="mb-1 text-xl font-extrabold tracking-tight text-text">
