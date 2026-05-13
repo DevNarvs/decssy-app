@@ -14,7 +14,7 @@
 import sharp from "sharp";
 import { mkdir } from "node:fs/promises";
 
-const SOURCE = "public/decssy-logo.png";
+const SOURCE = "public/Decssy-Logo.png";
 const CREAM = "#fdf7f2";
 
 await mkdir("public/icons", { recursive: true });
