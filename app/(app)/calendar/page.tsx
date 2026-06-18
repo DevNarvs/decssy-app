@@ -15,8 +15,6 @@ import { GroupFilterChips } from "@/components/calendar/GroupFilterChips";
 import { MonthGrid, localDateKey } from "@/components/calendar/MonthGrid";
 import { AgendaList } from "@/components/calendar/AgendaList";
 import { CreateEventFAB } from "@/components/calendar/CreateEventFAB";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { CalendarDays } from "lucide-react";
 // `Link` from next/link is imported above; we use it for the settings cog.
 
 export default function CalendarPage() {
@@ -54,6 +52,9 @@ export default function CalendarPage() {
 
   // 4) Query data.
   const myGroups = useQuery(api.groups.listMyGroups);
+  // Personal "Just me" group — surfaced separately from social groups so the
+  // FAB can offer a personal-event destination above the group cards.
+  const personalGroup = useQuery(api.groups.getPersonalGroup);
 
   // Range: 1st of month minus 6 days (to cover prior month overflow in grid)
   // through end of month plus 6 days (next month overflow).
@@ -131,11 +132,9 @@ export default function CalendarPage() {
     setSelectedGroupIds(next);
   }
 
-  // 8) Loading states + empty-onboarding state.
+  // 8) Loading states.
   const isLoadingGroups = myGroups === undefined;
   const isLoadingEvents = events === undefined;
-
-  const hasNoGroups = myGroups !== undefined && myGroups.length === 0;
 
   const dateFmt = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -180,43 +179,37 @@ export default function CalendarPage() {
         onToday={goToday}
       />
 
-      {/* Month grid */}
-      {hasNoGroups ? (
-        <EmptyState
-          icon={<CalendarDays size={24} strokeWidth={1.5} />}
-          title="No calendar yet"
-          description="Create your first group to start adding events."
-          cta={{ label: "Create a group", href: "/groups/new" }}
-          className="my-8"
-        />
-      ) : (
-        <>
-          <MonthGrid
-            year={currentMonth.getFullYear()}
-            month={currentMonth.getMonth()}
-            selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
-            eventsByDay={eventsByDay}
-          />
+      {/* Month grid — always shown. Every user has at least a personal
+          calendar (auto-created "My Schedule"), so there's no "no calendar
+          yet" state; an empty calendar with the agenda's "Tap + to add one"
+          is the correct empty experience. */}
+      <MonthGrid
+        year={currentMonth.getFullYear()}
+        month={currentMonth.getMonth()}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        eventsByDay={eventsByDay}
+      />
 
-          {/* Selected-date agenda */}
-          <div className="mt-6">
-            <AgendaList
-              items={selectedDateAgenda}
-              heading={dateFmt.format(selectedDate)}
-              emptyMessage={
-                isLoadingEvents
-                  ? "Loading events…"
-                  : "No events on this day. Tap + to add one."
-              }
-            />
-          </div>
-        </>
-      )}
+      {/* Selected-date agenda */}
+      <div className="mt-6">
+        <AgendaList
+          items={selectedDateAgenda}
+          heading={dateFmt.format(selectedDate)}
+          emptyMessage={
+            isLoadingEvents
+              ? "Loading events…"
+              : "No events on this day. Tap + to add one."
+          }
+        />
+      </div>
 
       {/* FAB — render when groups are loaded */}
       {myGroups !== undefined && (
-        <CreateEventFAB groups={myGroups.map((g) => g.group)} />
+        <CreateEventFAB
+          groups={myGroups.map((g) => g.group)}
+          personalGroup={personalGroup ?? null}
+        />
       )}
     </div>
   );

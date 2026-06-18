@@ -61,8 +61,15 @@ export const createGroup = mutation({
 });
 
 /**
- * Returns groups the caller is a member of, with member counts.
+ * Returns the *social* groups the caller is a member of, with member counts.
  * Sorted by createdAt descending (most recently created first).
+ *
+ * Excludes the auto-created personal-default group ("My Schedule") — that's
+ * a solo storage container for personal events, not a social group, so it
+ * has no place in the /groups list or the calendar filter chips. Surface it
+ * via `getPersonalGroup` instead. (This is what makes the personal schedule
+ * stop masquerading as a group and resolves the duplicate "My Schedule"
+ * confusion when a real social group happens to share that name.)
  */
 export const listMyGroups = query({
   args: {},
@@ -83,6 +90,7 @@ export const listMyGroups = query({
     for (const m of memberships) {
       const group = await ctx.db.get(m.groupId);
       if (!group) continue;
+      if (group.isPersonalDefault === true) continue; // personal space, not a social group
       const memberCount = (
         await ctx.db
           .query("groupMembers")
@@ -99,6 +107,25 @@ export const listMyGroups = query({
     results.sort((a, b) => b.group.createdAt - a.group.createdAt);
 
     return results;
+  },
+});
+
+/**
+ * Returns the caller's auto-created personal-default group ("My Schedule"),
+ * or null if they don't have one yet (ensurePersonalGroup creates it on
+ * first calendar visit). Used by the create-event FAB to offer a "Just me"
+ * destination distinct from the social group cards.
+ */
+export const getPersonalGroup = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return null;
+    const owned = await ctx.db
+      .query("groups")
+      .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+      .collect();
+    return owned.find((g) => g.isPersonalDefault === true) ?? null;
   },
 });
 
