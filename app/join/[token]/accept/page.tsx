@@ -19,6 +19,7 @@ import { useMutation } from "convex/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, AlertCircle, Info } from "lucide-react";
 import { api } from "@/convex/_generated/api";
+import { safeNextPath } from "@/lib/safeNext";
 import type { Id } from "@/convex/_generated/dataModel";
 import { clearPendingInvite } from "@/lib/hooks/usePendingInvite";
 import { WelcomeCard } from "@/components/onboarding/WelcomeCard";
@@ -46,10 +47,8 @@ export default function AcceptInvitePage({ params }: PageProps) {
 
   // Optional override for where to land after joining — used by event-share
   // links that thread `/groups/<id>/events/<eid>` through the join flow.
-  // Validated to be an in-app absolute path to prevent open-redirect.
-  const rawNext = searchParams?.get("next") ?? null;
-  const next =
-    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
+  // safeNextPath rejects external/protocol-relative targets (open-redirect).
+  const next = safeNextPath(searchParams?.get("next"));
 
   useEffect(() => {
     let cancelled = false;

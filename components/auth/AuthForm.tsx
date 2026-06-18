@@ -17,6 +17,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { GoogleIcon } from "./GoogleIcon";
+import { safeNextPath } from "@/lib/safeNext";
 import { cn } from "@/lib/utils";
 
 type Flow = "signIn" | "signUp";
@@ -37,12 +38,11 @@ export function AuthForm({ flow }: AuthFormProps) {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // `?next=<path>` overrides the default post-auth destination. Used by the
-  // invite landing to send users straight to /join/<token>/accept after
-  // sign-up/sign-in — survives the OAuth round-trip when localStorage and
-  // cookies might not. We only honor absolute paths starting with "/" to
-  // avoid open-redirect to attacker-controlled origins.
-  const rawNext = searchParams?.get("next");
-  const next = rawNext && rawNext.startsWith("/") ? rawNext : "/calendar";
+  // invite / event-share landings to send users straight to the accept page
+  // after sign-up/sign-in — survives the OAuth round-trip when localStorage
+  // and cookies might not. safeNextPath rejects external/protocol-relative
+  // targets to avoid open-redirect to attacker-controlled origins.
+  const next = safeNextPath(searchParams?.get("next")) ?? "/calendar";
 
   const isBusy = isPasswordLoading || isGoogleLoading;
 

@@ -1,6 +1,7 @@
 import { fetchQuery } from "convex/nextjs";
 import type { Metadata } from "next";
 import { api } from "@/convex/_generated/api";
+import { safeNextPath } from "@/lib/safeNext";
 import { JoinLandingClient } from "./JoinLandingClient";
 
 interface PageProps {
@@ -57,13 +58,10 @@ export default async function JoinLandingPage({ params, searchParams }: PageProp
   const { next: rawNext } = await searchParams;
   const preview = await getPreview(token);
 
-  // Only honor absolute in-app paths to prevent open-redirect to attacker
-  // domains. The fallback (null) means the accept page uses its default
-  // destination (/groups/<id>).
-  const next =
-    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
-      ? rawNext
-      : null;
+  // Only honor same-origin in-app paths to prevent open-redirect to attacker
+  // domains. null means the accept page uses its default destination
+  // (/groups/<id>).
+  const next = safeNextPath(rawNext);
 
   return <JoinLandingClient token={token} preview={preview} next={next} />;
 }

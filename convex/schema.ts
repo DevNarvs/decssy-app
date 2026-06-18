@@ -84,6 +84,21 @@ export default defineSchema({
     .index("by_token", ["token"])
     .index("by_group", ["groupId"]),
 
+  // Per-event share tokens (distinct from groupInvites). Grant a single
+  // recipient RSVP access to ONE event without joining any group — the
+  // recipient gets an eventAttendees row, never a groupMembers row. Used by
+  // the "share a personal event" flow. See convex/eventShares.ts.
+  eventShares: defineTable({
+    eventId: v.id("events"),
+    token: v.string(), // same generator as group invites (~143 bits entropy)
+    createdBy: v.id("users"), // must be the event creator
+    createdAt: v.number(),
+    expiresAt: v.number(), // ms epoch; default = createdAt + 30d
+    revokedAt: v.optional(v.number()), // soft revoke; absence = active
+  })
+    .index("by_token", ["token"])
+    .index("by_event", ["eventId"]),
+
   events: defineTable({
     groupId: v.id("groups"),
     type: v.union(

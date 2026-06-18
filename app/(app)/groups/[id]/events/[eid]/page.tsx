@@ -33,16 +33,14 @@ export default function EventDetailPage({ params }: PageProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  // Event was deleted, OR the user lost access to its group (removed,
-  // group deleted). Soft-redirect to the group page (or /groups if the
-  // group itself is gone) — router.replace avoids Chrome's beforeunload
-  // intervention that the old window.location.href triggered.
-  const isInaccessible = detail === null || groupDetail === null;
+  // Redirect ONLY when the event itself is inaccessible — deleted, or the
+  // caller has neither group membership nor an event-share attendee row
+  // (getEvent returns null). A null groupDetail alongside a non-null detail
+  // means "guest": access via a per-event share, not group membership. That
+  // is a valid view, NOT a reason to bounce.
   useEffect(() => {
-    if (isInaccessible) {
-      router.replace(groupDetail === null ? "/groups" : `/groups/${groupId}`);
-    }
-  }, [isInaccessible, groupDetail, groupId, router]);
+    if (detail === null) router.replace("/calendar");
+  }, [detail, router]);
 
   if (detail === undefined || groupDetail === undefined) {
     return (
@@ -60,10 +58,17 @@ export default function EventDetailPage({ params }: PageProps) {
     );
   }
 
-  if (detail === null || groupDetail === null) {
-    // useEffect above is already redirecting via router.replace.
+  if (detail === null) {
+    // useEffect above is redirecting to /calendar.
     return null;
   }
+
+  // Guest = can see this event via a share, but isn't in its group. We have
+  // no group color/name for them (getGroup is membership-gated and returned
+  // null), so fall back to a neutral color and hide group-only affordances.
+  const isGuest = groupDetail === null;
+  // Narrow on groupDetail directly (not isGuest) so TS knows it's non-null.
+  const groupColor = groupDetail === null ? "#9CA3AF" : groupDetail.group.color;
 
   const { event, attendees, comments, myStatus, isCreator } = detail;
   const TypeIcon = event.type === "group_shared" ? Users : User;
@@ -83,7 +88,7 @@ export default function EventDetailPage({ params }: PageProps) {
     <div className="mx-auto max-w-md px-4 pt-safe pb-12">
       <header className="flex items-center gap-3 py-4">
         <Link
-          href={`/groups/${groupId}`}
+          href={isGuest ? "/calendar" : `/groups/${groupId}`}
           aria-label="Back"
           className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-text-muted hover:text-text"
         >
@@ -92,14 +97,17 @@ export default function EventDetailPage({ params }: PageProps) {
         <h2 className="flex-1 truncate text-lg font-extrabold tracking-tight text-text">
           {event.title}
         </h2>
-        <button
-          type="button"
-          onClick={() => setShareOpen(true)}
-          aria-label="Share event"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text"
-        >
-          <Share2 size={16} strokeWidth={1.5} />
-        </button>
+        {/* Guests can't re-share an event they don't own — hide the button. */}
+        {!isGuest && (
+          <button
+            type="button"
+            onClick={() => setShareOpen(true)}
+            aria-label="Share event"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text"
+          >
+            <Share2 size={16} strokeWidth={1.5} />
+          </button>
+        )}
         {isCreator && (
           <button
             type="button"
@@ -154,28 +162,29 @@ export default function EventDetailPage({ params }: PageProps) {
         />
 
         {/* Attendees */}
-        <AttendeesList
-          attendees={attendees}
-          groupColor={groupDetail.group.color}
-        />
+        <AttendeesList attendees={attendees} groupColor={groupColor} />
 
         {/* Comments */}
         <CommentThread
           eventId={eventId}
           comments={comments}
-          groupColor={groupDetail.group.color}
+          groupColor={groupColor}
         />
       </div>
 
-      <EventShareDialog
-        groupId={groupId}
-        eventId={eventId}
-        eventTitle={event.title}
-        isOwner={groupDetail.isOwner}
-        isPersonalDefault={groupDetail.group.isPersonalDefault === true}
-        open={shareOpen}
-        onClose={() => setShareOpen(false)}
-      />
+      {/* Share dialog needs group context (owner/personal flags) — render
+          only for members (groupDetail non-null), never guests. */}
+      {groupDetail !== null && (
+        <EventShareDialog
+          groupId={groupId}
+          eventId={eventId}
+          eventTitle={event.title}
+          isOwner={groupDetail.isOwner}
+          isPersonalDefault={groupDetail.group.isPersonalDefault === true}
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmCancel}

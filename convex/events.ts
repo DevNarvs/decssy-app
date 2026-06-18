@@ -202,11 +202,18 @@ export const listUpcomingEventsInGroup = query({
 });
 
 /**
- * Aggregate events across ALL groups the caller is a member of, within
- * a date range. Optional groupIds filter narrows to a subset.
+ * Aggregate events for the caller's calendar within a date range. Two
+ * sources, unioned:
+ *   1. Events from every group the caller is a member of.
+ *   2. "Shared-in" events — events the caller has a direct eventAttendees
+ *      row for but whose group they are NOT a member of (they accepted a
+ *      per-event share; see convex/eventShares.ts). These render with the
+ *      sharer's name as the label (the caller can't see the group), never
+ *      the group name.
  *
- * Returns enriched rows with group color + name for client rendering.
- * Returns null if not authenticated.
+ * The optional groupIds filter narrows source 1 to a subset of the caller's
+ * groups; when a filter is active, shared-in events are excluded (they
+ * belong to no group chip). Returns null if not authenticated.
  *
  * Used by the Calendar tab. O(groups × events-in-range) DB calls — fine
  * up to PRD's 50-groups-per-user cap; Plan 9+ can add a busy-cache table
@@ -226,6 +233,11 @@ export const listMyEventsInRange = query({
       .query("groupMembers")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
+    // Full membership set (before the optional filter) — used to dedupe
+    // shared-in events that the caller would also receive via a group.
+    const allMemberGroupIds = new Set(
+      memberships.map((m) => m.groupId.toString()),
+    );
     let memberGroupIds = memberships.map((m) => m.groupId);
 
     if (groupIds !== undefined) {
@@ -245,6 +257,7 @@ export const listMyEventsInRange = query({
       groupName: string;
     }> = [];
 
+    // Source 1: events from groups the caller belongs to.
     for (const gid of memberGroupIds) {
       const raw = await ctx.db
         .query("events")
@@ -264,6 +277,39 @@ export const listMyEventsInRange = query({
       }
     }
 
+    // Source 2: shared-in events (direct attendee rows, group not joined).
+    // Skipped when a group filter is active — these have no group chip.
+    if (groupIds === undefined) {
+      const myAttendeeRows = await ctx.db
+        .query("eventAttendees")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect();
+      const seenEventIds = new Set<string>();
+      for (const a of myAttendeeRows) {
+        const e = await ctx.db.get(a.eventId);
+        if (!e || e.deletedAt !== undefined) continue;
+        // Already surfaced via a group membership → skip (no double-render).
+        if (allMemberGroupIds.has(e.groupId.toString())) continue;
+        if (seenEventIds.has(e._id.toString())) continue;
+        seenEventIds.add(e._id.toString());
+
+        // Label with the sharer's name, color with the source group's color
+        // (a color isn't sensitive; the group name/roster never leaks here).
+        const g = await ctx.db.get(e.groupId);
+        const creator = await ctx.db.get(e.createdBy);
+        const sharerName =
+          creator?.name ?? creator?.email ?? "Shared with you";
+        const instances = expandOccurrences(e, rangeStart, rangeEnd);
+        for (const inst of instances) {
+          enriched.push({
+            event: inst,
+            groupColor: g?.color ?? "#9CA3AF",
+            groupName: sharerName,
+          });
+        }
+      }
+    }
+
     enriched.sort((a, b) => a.event.startUtc - b.event.startUtc);
     return enriched;
   },
@@ -271,8 +317,16 @@ export const listMyEventsInRange = query({
 
 /**
  * Full event detail: event row + hydrated attendees + non-deleted comments
- * + the caller's own RSVP status. Returns null if the caller isn't a
- * member of the group or if the event is deleted.
+ * + the caller's own RSVP status. Returns null if the event is deleted or
+ * the caller has no access.
+ *
+ * Access = group member OR has an eventAttendees row (the latter covers
+ * "guests" who accepted a per-event share without joining the group; see
+ * convex/eventShares.ts). Guests get the same payload EXCEPT `isGuest: true`
+ * and they never receive group identity here — getEvent deliberately
+ * returns no group name/color (the page falls back to a neutral style) and
+ * the separate getGroup query stays membership-gated, so a guest can't
+ * pivot from one shared event into the group or its other events.
  */
 export const getEvent = query({
   args: { eventId: v.id("events") },
@@ -288,7 +342,15 @@ export const getEvent = query({
         q.eq("groupId", event.groupId).eq("userId", userId),
       )
       .unique();
-    if (!membership) return null;
+    const myAttendance = await ctx.db
+      .query("eventAttendees")
+      .withIndex("by_event_and_user", (q) =>
+        q.eq("eventId", eventId).eq("userId", userId),
+      )
+      .unique();
+    // No group membership AND no direct attendee row → no access.
+    if (!membership && !myAttendance) return null;
+    const isGuest = !membership;
 
     const attendeeRows = await ctx.db
       .query("eventAttendees")
@@ -342,14 +404,32 @@ export const getEvent = query({
     }
     comments.sort((a, b) => a.createdAt - b.createdAt);
 
-    const myAttendance = attendeeRows.find((a) => a.userId === userId);
+    // Guests (event-share recipients, or removed members with a lingering
+    // attendee row) must NOT see the rest of the group. For a group_shared
+    // event the full attendee list IS effectively the group roster, and the
+    // comments are group chatter — so for guests we expose only the host
+    // (event creator) plus the guest's own row, and only comments authored
+    // by the creator or the guest. This makes getEvent's "no roster to
+    // guests" guarantee true by construction, regardless of how the guest
+    // obtained their attendee row.
+    const visibleAttendees = isGuest
+      ? attendees.filter(
+          (a) => a.userId === event.createdBy || a.userId === userId,
+        )
+      : attendees;
+    const visibleComments = isGuest
+      ? comments.filter(
+          (c) => c.userId === event.createdBy || c.userId === userId,
+        )
+      : comments;
 
     return {
       event,
-      attendees,
-      comments,
+      attendees: visibleAttendees,
+      comments: visibleComments,
       myStatus: myAttendance?.status ?? null,
       isCreator: event.createdBy === userId,
+      isGuest, // true = access via event-share attendee row, not group membership
     };
   },
 });

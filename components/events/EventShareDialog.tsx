@@ -4,20 +4,21 @@
  * Event-level share dialog.
  *
  * Shows a QR code + copyable link + native-share button for a specific
- * event. Two URL strategies depending on whether the sharer can grant
- * outsiders access to the group:
+ * event. Three URL strategies depending on the event's group:
  *
- *   1. **Invite-backed link** (group owner, non-personal group): the URL
- *      routes through `/join/<token>?next=/groups/<id>/events/<eid>`.
- *      Recipients who aren't yet in the group go through the join flow
- *      and land on the event; recipients who are already in flow straight
- *      through. Works universally — this is the default.
+ *   1. **Event-share link** (PERSONAL "Just me" events): the URL is
+ *      `/e/<token>`. The recipient RSVPs and the event lands on their
+ *      calendar WITHOUT joining any group. This is the "share the sched,
+ *      not the group" path. See convex/eventShares.ts.
  *
- *   2. **Direct event link** (non-owner, or invite creation failed): the
- *      URL is just `/groups/<id>/events/<eid>`. Only group members can
- *      open it; outsiders see the "you're not in this group" empty state.
- *      The dialog tells the user this so they know to send a separate
- *      group invite if needed.
+ *   2. **Invite-backed link** (social-group owner): the URL routes through
+ *      `/join/<token>?next=/groups/<id>/events/<eid>`. Recipients who
+ *      aren't in the group join it and land on the event; existing members
+ *      flow straight through.
+ *
+ *   3. **Direct event link** (non-owner of a social group, or token
+ *      creation failed): just `/groups/<id>/events/<eid>`. Only current
+ *      members can open it; the dialog explains the limitation.
  */
 import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
@@ -27,6 +28,8 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { getShareBaseUrl } from "@/lib/env";
 import { cn } from "@/lib/utils";
+
+type ShareState = "pending" | "eventshare" | "invite" | "direct";
 
 interface Props {
   groupId: Id<"groups">;
@@ -51,70 +54,92 @@ export function EventShareDialog({
 }: Props) {
   const generate = useAction(api.qr.generate);
   const ensureInvite = useMutation(api.invites.ensureActiveInvite);
+  const ensureEventShare = useMutation(api.eventShares.ensureEventShare);
   const [qrSvg, setQrSvg] = useState<string | null>(null);
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
-  // Tri-state: "pending" while we figure out the URL (mutation in flight),
-  // "invite" when we got a token, "direct" when we skipped/failed and are
-  // using the direct event URL. Crucial for showing the user *why* — the
-  // initial flash of the direct URL while pending was confusing.
-  const [inviteState, setInviteState] = useState<"pending" | "invite" | "direct">(
-    "pending",
-  );
-  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  // "pending" while the share URL is being resolved (mutation in flight),
+  // then one of three resolved modes. Tracking *which* mode (not just
+  // "have token / don't") lets us show the right copy and avoid the URL
+  // flashing the wrong value mid-resolution.
+  const [shareState, setShareState] = useState<ShareState>("pending");
+  const [shareError, setShareError] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   const baseUrl = getShareBaseUrl();
   const directPath = `/groups/${groupId}/events/${eventId}`;
-  const url = inviteToken
-    ? `${baseUrl}/join/${inviteToken}?next=${encodeURIComponent(directPath)}`
-    : `${baseUrl}${directPath}`;
+  const url =
+    shareState === "eventshare" && token
+      ? `${baseUrl}/e/${token}`
+      : shareState === "invite" && token
+        ? `${baseUrl}/join/${token}?next=${encodeURIComponent(directPath)}`
+        : `${baseUrl}${directPath}`;
 
-  // Try to get an invite token on open (owner only, non-personal group).
-  // Recoverable failure: just fall back to the direct URL — recipients
-  // still get a useful link if they're already group members.
+  // Resolve the share URL on open. Personal "Just me" events use an
+  // event-share token (RSVP without joining); social-group events fall back
+  // to the group-invite flow (owner) or a direct member-only link.
   useEffect(() => {
     if (!open) return;
-    if (inviteState !== "pending") return; // already resolved this open
+    if (shareState !== "pending") return; // already resolved this open
 
-    // Eligibility short-circuit: only group owners can mint invites, and
-    // personal-default groups can't be shared externally regardless.
-    if (!isOwner) {
-      setInviteState("direct");
-      setInviteError(
-        "Only the group owner can generate links that work for non-members.",
-      );
+    if (isPersonalDefault) {
+      // Personal event → per-event share. Recipient RSVPs, no group join.
+      ensureEventShare({ eventId })
+        .then((t) => {
+          setToken(t);
+          setShareState("eventshare");
+        })
+        .catch((err) => {
+          console.warn("ensureEventShare failed:", err);
+          setShareState("direct");
+          setShareError(
+            err instanceof Error
+              ? err.message
+              : "Couldn't generate a share link; sharing the direct URL instead.",
+          );
+        });
       return;
     }
-    if (isPersonalDefault) {
-      setInviteState("direct");
-      setInviteError(
-        "Personal schedule groups can't be shared externally — they're solo by design.",
+
+    // Social group: only the owner can mint a group invite.
+    if (!isOwner) {
+      setShareState("direct");
+      setShareError(
+        "Only the group owner can generate links that work for non-members.",
       );
       return;
     }
 
     ensureInvite({ groupId })
-      .then((token) => {
-        setInviteToken(token);
-        setInviteState("invite");
+      .then((t) => {
+        setToken(t);
+        setShareState("invite");
       })
       .catch((err) => {
         console.warn("ensureActiveInvite failed:", err);
-        setInviteState("direct");
-        setInviteError(
+        setShareState("direct");
+        setShareError(
           err instanceof Error
             ? err.message
             : "Couldn't generate an invite-backed link; sharing the direct URL instead.",
         );
       });
-  }, [open, inviteState, isOwner, isPersonalDefault, ensureInvite, groupId]);
+  }, [
+    open,
+    shareState,
+    isOwner,
+    isPersonalDefault,
+    ensureInvite,
+    ensureEventShare,
+    groupId,
+    eventId,
+  ]);
 
   // Generate QR only AFTER invite resolution settles — otherwise the QR
   // would render the direct URL momentarily before regenerating for the
   // invite URL, which both looks broken and wastes a Convex action call.
   useEffect(() => {
     if (!open) return;
-    if (inviteState === "pending") return; // wait for resolution
+    if (shareState === "pending") return; // wait for resolution
     closeRef.current?.focus();
     let cancelled = false;
     generate({ data: url })
@@ -140,20 +165,20 @@ export function EventShareDialog({
   useEffect(() => {
     if (!open) {
       setQrSvg(null);
-      setInviteToken(null);
-      setInviteState("pending");
-      setInviteError(null);
+      setToken(null);
+      setShareState("pending");
+      setShareError(null);
     }
   }, [open]);
 
   async function handleNativeShare() {
     if (typeof navigator === "undefined" || !navigator.share) return;
+    const text =
+      shareState === "eventshare"
+        ? `RSVP to "${eventTitle}" on Decssy`
+        : `Join "${eventTitle}" on Decssy`;
     try {
-      await navigator.share({
-        title: eventTitle,
-        text: `Join "${eventTitle}" on Decssy`,
-        url,
-      });
+      await navigator.share({ title: eventTitle, text, url });
     } catch {
       // user cancelled — silent
     }
@@ -164,8 +189,7 @@ export function EventShareDialog({
 
   if (!open) return null;
 
-  const isInviteBacked = inviteState === "invite";
-  const isResolving = inviteState === "pending";
+  const isResolving = shareState === "pending";
 
   return (
     <div
@@ -190,7 +214,13 @@ export function EventShareDialog({
         <p className="mb-4 text-sm text-text-muted">
           {isResolving ? (
             <>Preparing share link…</>
-          ) : isInviteBacked ? (
+          ) : shareState === "eventshare" ? (
+            <>
+              Anyone with this link can RSVP to{" "}
+              <span className="text-text">{eventTitle}</span> — it'll show on
+              their calendar. They won't join any group, just this event.
+            </>
+          ) : shareState === "invite" ? (
             <>
               Anyone with this link can join{" "}
               <span className="text-text">{eventTitle}</span> — they'll be
@@ -244,14 +274,14 @@ export function EventShareDialog({
             </div>
           </div>
 
-          {inviteError && (
+          {shareError && (
             <div className="flex w-full items-start gap-2 rounded-md border border-maybe/30 bg-maybe/10 px-3 py-2 text-xs text-text-muted">
               <AlertCircle
                 size={14}
                 strokeWidth={2}
                 className="mt-0.5 shrink-0 text-maybe"
               />
-              <span>{inviteError}</span>
+              <span>{shareError}</span>
             </div>
           )}
 

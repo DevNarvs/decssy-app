@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
 import type * as email from "../email.js";
+import type * as eventShares from "../eventShares.js";
 import type * as events from "../events.js";
 import type * as findfree from "../findfree.js";
 import type * as groups from "../groups.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   comments: typeof comments;
   crons: typeof crons;
   email: typeof email;
+  eventShares: typeof eventShares;
   events: typeof events;
   findfree: typeof findfree;
   groups: typeof groups;

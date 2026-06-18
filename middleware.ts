@@ -16,10 +16,14 @@ import {
   createRouteMatcher,
   nextjsMiddlewareRedirect,
 } from "@convex-dev/auth/nextjs/server";
+import { safeNextPath } from "@/lib/safeNext";
 
 const isSignInPage = createRouteMatcher(["/sign-in", "/sign-up"]);
 const isWelcomePage = createRouteMatcher(["/welcome(.*)"]);
 const isJoinAccept = createRouteMatcher(["/join/:token/accept"]);
+// Event-share accept (mirrors /join/:token/accept). The bare /e/:token
+// preview is intentionally NOT matched here — it's public.
+const isEventRespond = createRouteMatcher(["/e/:token/respond"]);
 const isProtectedRoute = createRouteMatcher([
   "/calendar(.*)",
   "/groups(.*)",
@@ -33,11 +37,10 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
 
   if (isSignInPage(request) && isAuthed) {
     // Preserve `?next=<path>` for already-authed users who land here via
-    // an invite link's "Sign in instead" button — otherwise their target
-    // would be lost on the way to /calendar. Only absolute paths starting
-    // with "/" are honored, to prevent open-redirect attacks.
-    const next = request.nextUrl.searchParams.get("next");
-    const target = next && next.startsWith("/") ? next : "/calendar";
+    // an invite / event-share link's "Sign in instead" button — otherwise
+    // their target would be lost on the way to /calendar. safeNextPath
+    // rejects external/protocol-relative targets (open-redirect guard).
+    const target = safeNextPath(request.nextUrl.searchParams.get("next")) ?? "/calendar";
     return nextjsMiddlewareRedirect(request, target);
   }
 
@@ -49,6 +52,12 @@ export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
     return nextjsMiddlewareRedirect(request, "/sign-in");
   }
   // /join/[token] (no /accept) is intentionally NOT matched here — it's public.
+
+  if (isEventRespond(request) && !isAuthed) {
+    return nextjsMiddlewareRedirect(request, "/sign-in");
+  }
+  // /e/[token] (no /respond) is intentionally NOT matched here — it's the
+  // public event-share preview.
 
   if (isAuthed) {
     const onboarded = request.cookies.get("decssy_onboarded")?.value === "1";
