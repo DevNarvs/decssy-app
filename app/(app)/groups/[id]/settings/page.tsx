@@ -7,6 +7,7 @@ import { ArrowLeft, UserCheck } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { GroupSettingsForm } from "@/components/groups/GroupSettingsForm";
+import { GroupNotificationToggle } from "@/components/groups/GroupNotificationToggle";
 import { DangerZone } from "@/components/groups/DangerZone";
 import { TransferOwnershipDialog } from "@/components/groups/TransferOwnershipDialog";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,13 @@ export default function GroupSettingsPage({ params }: PageProps) {
           <div className="rounded-lg border border-border bg-surface p-4 text-md text-text-muted">
             Only the group owner can edit settings.
           </div>
+        )}
+
+        {/* Per-group mute — available to every member. Pointless for the
+            solo "Just me" group (you never get notified about your own
+            events), so hide it there. */}
+        {!detail.group.isPersonalDefault && (
+          <GroupNotificationToggle groupId={groupId} />
         )}
 
         {canTransfer && (

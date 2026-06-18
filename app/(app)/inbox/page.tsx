@@ -3,10 +3,39 @@
 import { useMutation, useQuery } from "convex/react";
 import { Bell } from "lucide-react";
 import { api } from "@/convex/_generated/api";
+import type { Doc } from "@/convex/_generated/dataModel";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { NotificationBundle } from "@/components/notifications/NotificationBundle";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+type Notif = Doc<"notifications">;
+
+/**
+ * Collapse comment notifications on the same event into one bundle so a busy
+ * thread reads as a single row instead of N. Everything else stays a single
+ * row. Input is newest-first; output preserves that order by each group's
+ * newest item.
+ */
+function bundleNotifications(items: Notif[]): Array<{ key: string; rows: Notif[] }> {
+  const groups = new Map<string, Notif[]>();
+  const order: string[] = [];
+  for (const n of items) {
+    const key =
+      n.type === "comment_added" && n.eventId
+        ? `c:${n.eventId}`
+        : `s:${n._id}`; // singletons never merge
+    const existing = groups.get(key);
+    if (existing) {
+      existing.push(n);
+    } else {
+      groups.set(key, [n]);
+      order.push(key);
+    }
+  }
+  return order.map((key) => ({ key, rows: groups.get(key)! }));
+}
 
 export default function InboxPage() {
   const notifications = useQuery(api.notifications.listMyNotifications);
@@ -81,22 +110,21 @@ export default function InboxPage() {
   );
 }
 
-function Section({
-  title,
-  items,
-}: {
-  title: string;
-  items: import("@/convex/_generated/dataModel").Doc<"notifications">[];
-}) {
+function Section({ title, items }: { title: string; items: Notif[] }) {
+  const groups = bundleNotifications(items);
   return (
     <section>
       <h2 className="mb-2 px-1 text-sm font-extrabold uppercase tracking-wide text-text-muted">
         {title}
       </h2>
       <ul className="space-y-2">
-        {items.map((n) => (
-          <li key={n._id}>
-            <NotificationItem n={n} />
+        {groups.map(({ key, rows }) => (
+          <li key={key}>
+            {rows.length > 1 ? (
+              <NotificationBundle rows={rows} />
+            ) : (
+              <NotificationItem n={rows[0]!} />
+            )}
           </li>
         ))}
       </ul>

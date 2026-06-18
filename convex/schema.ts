@@ -166,4 +166,16 @@ export default defineSchema({
     .index("by_user_and_created", ["userId", "createdAt"])
     .index("by_user_and_unread", ["userId", "readAt"])
     .index("by_email_pending", ["emailSentAt", "createdAt"]),
+
+  // Per-(user, group) notification mute. Presence of a row = that user has
+  // muted that group; createNotification skips muted recipients, killing
+  // both the in-app notification and the email for that group. Absence =
+  // unmuted (default). Whole-group granularity. See convex/notifications.ts.
+  notificationMutes: defineTable({
+    userId: v.id("users"),
+    groupId: v.id("groups"),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_group", ["userId", "groupId"]),
 });
