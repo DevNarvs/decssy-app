@@ -9,6 +9,7 @@
  */
 
 import type * as ResendOTPPasswordReset from "../ResendOTPPasswordReset.js";
+import type * as account from "../account.js";
 import type * as auth from "../auth.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
@@ -25,6 +26,8 @@ import type * as lib_permissions from "../lib/permissions.js";
 import type * as lib_recurrence from "../lib/recurrence.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as notifications from "../notifications.js";
+import type * as push from "../push.js";
+import type * as pushNode from "../pushNode.js";
 import type * as qr from "../qr.js";
 import type * as rsvp from "../rsvp.js";
 import type * as users from "../users.js";
@@ -37,6 +40,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   ResendOTPPasswordReset: typeof ResendOTPPasswordReset;
+  account: typeof account;
   auth: typeof auth;
   comments: typeof comments;
   crons: typeof crons;
@@ -53,6 +57,8 @@ declare const fullApi: ApiFromModules<{
   "lib/recurrence": typeof lib_recurrence;
   "lib/tokens": typeof lib_tokens;
   notifications: typeof notifications;
+  push: typeof push;
+  pushNode: typeof pushNode;
   qr: typeof qr;
   rsvp: typeof rsvp;
   users: typeof users;

@@ -5,6 +5,7 @@
 import { v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { requireMember } from "./lib/permissions";
 
@@ -62,6 +63,25 @@ export async function createNotification(
     message: args.message,
     createdAt: Date.now(),
   });
+
+  // Fan out a Web Push too — only for users who subscribed (the action loads
+  // their subscriptions and no-ops if none). Placed AFTER the self/mute guards
+  // so push inherits them. Skip comment_added (high-noise; mirrors its email-
+  // off-by-default policy) to avoid spamming the lock screen.
+  if (args.type !== "comment_added") {
+    const url =
+      args.eventId && args.groupId
+        ? `/groups/${args.groupId}/events/${args.eventId}`
+        : args.groupId
+          ? `/groups/${args.groupId}`
+          : "/inbox";
+    await ctx.scheduler.runAfter(0, internal.pushNode.sendPush, {
+      userId: args.userId,
+      title: "Decssy",
+      body: args.message,
+      url,
+    });
+  }
 }
 
 /** Reactive feed for the inbox. Returns last 50 newest-first. */

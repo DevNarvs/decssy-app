@@ -30,6 +30,11 @@ export const env = {
   // mimic a different origin (e.g., generate prod-style links while
   // developing locally to test the receive flow).
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+
+  // VAPID public key for Web Push (non-secret — the private key lives only in
+  // Convex deployment env). Optional: when unset, the push opt-in UI hides
+  // itself. Set in .env.local (dev) and Vercel (prod).
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
 };
 
 /**

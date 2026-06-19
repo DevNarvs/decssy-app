@@ -144,7 +144,9 @@ export default defineSchema({
     createdAt: v.number(),
     editedAt: v.optional(v.number()),
     deletedAt: v.optional(v.number()),
-  }).index("by_event_and_created", ["eventId", "createdAt"]),
+  })
+    .index("by_event_and_created", ["eventId", "createdAt"])
+    .index("by_author", ["userId"]), // for purging a deleted user's comments
 
   notifications: defineTable({
     userId: v.id("users"), // recipient

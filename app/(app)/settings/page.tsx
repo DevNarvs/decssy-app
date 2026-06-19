@@ -7,6 +7,8 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { SignOutButton } from "@/components/nav/SignOutButton";
+import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
+import { PushManager } from "@/components/push/PushManager";
 import { cn } from "@/lib/utils";
 
 type PrefKey =
@@ -135,6 +137,9 @@ export default function SettingsPage() {
           )}
         </section>
 
+        {/* Push notifications */}
+        <PushManager />
+
         {/* Notification preferences */}
         <section>
           <div className="mb-2 flex items-center justify-between px-1">
@@ -192,6 +197,9 @@ export default function SettingsPage() {
         <section>
           <SignOutButton className="w-full justify-center" />
         </section>
+
+        {/* Delete account */}
+        <DeleteAccountSection />
       </div>
     </div>
   );
