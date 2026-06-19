@@ -37,7 +37,9 @@ export function ServiceWorkerRegistrar() {
     const register = async () => {
       try {
         const reg = await navigator.serviceWorker.register(
-          `/sw.js?v=${env.NEXT_PUBLIC_APP_VERSION}`,
+          // Use the build id (git SHA), not the semver — it changes on every
+          // deploy, so two releases sharing a version number still update.
+          `/sw.js?v=${env.NEXT_PUBLIC_APP_BUILD}`,
           { scope: "/" },
         );
 

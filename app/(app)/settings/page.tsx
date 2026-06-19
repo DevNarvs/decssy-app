@@ -202,9 +202,12 @@ export default function SettingsPage() {
         {/* Delete account */}
         <DeleteAccountSection />
 
-        {/* App version */}
+        {/* App version (semver + precise build id) */}
         <p className="pb-4 text-center text-xs text-text-muted">
           Decssy · v{env.NEXT_PUBLIC_APP_VERSION}
+          {env.NEXT_PUBLIC_APP_BUILD !== "dev" && (
+            <span className="text-text-muted/70"> ({env.NEXT_PUBLIC_APP_BUILD})</span>
+          )}
         </p>
       </div>
     </div>

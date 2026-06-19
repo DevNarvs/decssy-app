@@ -1,32 +1,52 @@
 import type { NextConfig } from "next";
-import { execFileSync } from "node:child_process";
+import { execFileSync, type ExecFileSyncOptions } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 /**
- * Build-time app version, shown in Settings and used to bust the service
- * worker on each deploy (registered as /sw.js?v=<version>). On Vercel,
- * VERCEL_GIT_COMMIT_SHA is provided automatically; locally we read git;
- * otherwise "dev".
+ * Human-facing semantic version (from package.json — the number we bump and
+ * record in CHANGELOG.md). This is what users see ("v1.0.0").
  */
-function resolveAppVersion(): string {
+function resolveSemver(): string {
+  if (process.env.npm_package_version) return process.env.npm_package_version;
+  try {
+    return JSON.parse(readFileSync("./package.json", "utf8")).version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
+/**
+ * Precise build identifier (git short SHA). Distinct from the semver: it
+ * changes on EVERY deploy, so it's what busts the service worker
+ * (/sw.js?v=<build>) even between deploys that share a version number. On
+ * Vercel, VERCEL_GIT_COMMIT_SHA is provided automatically; locally we read
+ * git; otherwise "dev".
+ */
+function resolveBuild(): string {
   if (process.env.VERCEL_GIT_COMMIT_SHA) {
     return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7);
   }
   try {
     // execFile (no shell) with a fixed arg array — no injection surface.
-    return execFileSync("git", ["rev-parse", "--short", "HEAD"]).toString().trim();
+    const opts: ExecFileSyncOptions = {};
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], opts)
+      .toString()
+      .trim();
   } catch {
     return "dev";
   }
 }
 
-const APP_VERSION = resolveAppVersion();
+const APP_VERSION = resolveSemver();
+const APP_BUILD = resolveBuild();
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // Inlined into the client bundle so the version is available everywhere.
+  // Inlined into the client bundle so version + build are available everywhere.
   env: {
     NEXT_PUBLIC_APP_VERSION: APP_VERSION,
+    NEXT_PUBLIC_APP_BUILD: APP_BUILD,
   },
 
   async headers() {

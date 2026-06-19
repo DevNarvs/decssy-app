@@ -36,9 +36,13 @@ export const env = {
   // itself. Set in .env.local (dev) and Vercel (prod).
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
 
-  // Build-time app version (git short SHA, or "dev" locally). Injected via
-  // next.config.ts. Shown in Settings and used to bust the service worker.
-  NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION ?? "dev",
+  // Human-facing semantic version (e.g. "1.0.0"), from package.json. Bumped
+  // per release and recorded in CHANGELOG.md. Injected via next.config.ts.
+  NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0",
+
+  // Precise build id (git short SHA, or "dev" locally). Changes every deploy;
+  // used to bust the service worker and shown next to the version.
+  NEXT_PUBLIC_APP_BUILD: process.env.NEXT_PUBLIC_APP_BUILD ?? "dev",
 };
 
 /**
