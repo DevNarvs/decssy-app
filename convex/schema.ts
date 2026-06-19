@@ -42,6 +42,7 @@ export default defineSchema({
         comment_added: v.optional(v.boolean()),
         invite_accepted: v.optional(v.boolean()),
         ownership_transferred: v.optional(v.boolean()),
+        event_reminder: v.optional(v.boolean()),
       }),
     ),
   })
@@ -107,6 +108,7 @@ export default defineSchema({
     ),
     title: v.string(),
     description: v.optional(v.string()),
+    location: v.optional(v.string()), // free-text venue; client builds a maps link from it
     isAllDay: v.boolean(),
     startUtc: v.number(),
     endUtc: v.number(),
@@ -153,6 +155,7 @@ export default defineSchema({
       v.literal("comment_added"),
       v.literal("invite_accepted"),
       v.literal("ownership_transferred"),
+      v.literal("event_reminder"),
     ),
     groupId: v.optional(v.id("groups")),
     eventId: v.optional(v.id("events")),
@@ -178,4 +181,31 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_and_group", ["userId", "groupId"]),
+
+  // Dedup ledger for the event-reminder cron. One row per reminder actually
+  // sent, keyed by the specific OCCURRENCE start (recurring events reuse the
+  // parent _id, so eventId alone would collide across occurrences) + user +
+  // lead window. The producer inserts a row in the same mutation as the
+  // notification, so a retried/overlapping cron run never double-reminds.
+  // See convex/crons.ts generateEventReminders.
+  eventReminders: defineTable({
+    eventId: v.id("events"),
+    occurrenceStartUtc: v.number(),
+    userId: v.id("users"),
+    leadKey: v.union(v.literal("24h"), v.literal("1h")),
+    createdAt: v.number(),
+  }).index("by_dedup", ["eventId", "occurrenceStartUtc", "userId", "leadKey"]),
+
+  // Web Push subscriptions (one per browser/device the user enabled push on).
+  // The Convex node action convex/pushNode.ts reads these to fan out pushes;
+  // dead endpoints (HTTP 404/410) are pruned on send. See convex/push.ts.
+  pushSubscriptions: defineTable({
+    userId: v.id("users"),
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_endpoint", ["endpoint"]),
 });

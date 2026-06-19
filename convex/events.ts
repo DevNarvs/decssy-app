@@ -16,6 +16,7 @@ import { createNotification } from "./notifications";
 const TITLE_MIN = 1;
 const TITLE_MAX = 100;
 const DESCRIPTION_MAX = 2000;
+const LOCATION_MAX = 200;
 const TZ_PATTERN = /^[A-Za-z]+\/[A-Za-z_\/+\-0-9]+$|^UTC$/; // permissive IANA check
 
 function validate(args: {
@@ -58,6 +59,7 @@ export const createEvent = mutation({
     ),
     title: v.string(),
     description: v.optional(v.string()),
+    location: v.optional(v.string()),
     isAllDay: v.boolean(),
     startUtc: v.number(),
     endUtc: v.number(),
@@ -67,6 +69,9 @@ export const createEvent = mutation({
   handler: async (ctx, args) => {
     const userId = await requireMember(ctx, args.groupId);
     validate(args);
+    if (args.location !== undefined && args.location.length > LOCATION_MAX) {
+      throw new Error(`Location max ${LOCATION_MAX} characters`);
+    }
 
     const now = Date.now();
     const eventId = await ctx.db.insert("events", {
@@ -74,6 +79,7 @@ export const createEvent = mutation({
       type: args.type,
       title: args.title.trim(),
       description: args.description?.trim() || undefined,
+      location: args.location?.trim() || undefined,
       isAllDay: args.isAllDay,
       startUtc: args.startUtc,
       endUtc: args.endUtc,
@@ -442,6 +448,7 @@ export const updateEvent = mutation({
     eventId: v.id("events"),
     title: v.optional(v.string()),
     description: v.optional(v.string()),
+    location: v.optional(v.string()),
     isAllDay: v.optional(v.boolean()),
     startUtc: v.optional(v.number()),
     endUtc: v.optional(v.number()),
@@ -470,6 +477,12 @@ export const updateEvent = mutation({
     if (args.title !== undefined) patch.title = args.title.trim();
     if (args.description !== undefined) {
       patch.description = args.description.trim() || undefined;
+    }
+    if (args.location !== undefined) {
+      if (args.location.length > LOCATION_MAX) {
+        throw new Error(`Location max ${LOCATION_MAX} characters`);
+      }
+      patch.location = args.location.trim() || undefined;
     }
     if (args.isAllDay !== undefined) patch.isAllDay = args.isAllDay;
     if (args.startUtc !== undefined) patch.startUtc = args.startUtc;

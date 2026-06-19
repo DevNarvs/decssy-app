@@ -15,7 +15,8 @@ type PrefKey =
   | "event_cancelled"
   | "comment_added"
   | "invite_accepted"
-  | "ownership_transferred";
+  | "ownership_transferred"
+  | "event_reminder";
 
 const PREF_LABELS: Record<PrefKey, { label: string; description: string }> = {
   event_invite: {
@@ -41,6 +42,10 @@ const PREF_LABELS: Record<PrefKey, { label: string; description: string }> = {
   ownership_transferred: {
     label: "Ownership transfer",
     description: "You were made the owner of a group",
+  },
+  event_reminder: {
+    label: "Event reminders",
+    description: "A heads-up before an event you're attending starts",
   },
 };
 

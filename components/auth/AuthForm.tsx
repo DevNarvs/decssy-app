@@ -12,6 +12,7 @@
  * surfacing, loading states — is identical.
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
@@ -176,12 +177,22 @@ export function AuthForm({ flow }: AuthFormProps) {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="password"
-            className="text-sm font-bold text-text-muted"
-          >
-            Password
-          </label>
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor="password"
+              className="text-sm font-bold text-text-muted"
+            >
+              Password
+            </label>
+            {flow === "signIn" && (
+              <Link
+                href="/forgot-password"
+                className="text-sm font-bold text-accent hover:text-accent/80"
+              >
+                Forgot?
+              </Link>
+            )}
+          </div>
           <input
             id="password"
             type="password"

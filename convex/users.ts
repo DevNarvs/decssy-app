@@ -119,6 +119,7 @@ export const updateNotificationPrefs = mutation({
       comment_added: v.optional(v.boolean()),
       invite_accepted: v.optional(v.boolean()),
       ownership_transferred: v.optional(v.boolean()),
+      event_reminder: v.optional(v.boolean()),
     }),
   },
   handler: async (ctx, { prefs }) => {

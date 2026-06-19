@@ -46,6 +46,7 @@ export function EventCreateForm({ groupId }: Props) {
 
   const [type, setType] = useState<EventType>("personal_shared");
   const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [isAllDay, setIsAllDay] = useState(false);
   const [startLocal, setStartLocal] = useState(toLocalInputValue(defaultStart));
@@ -89,6 +90,7 @@ export function EventCreateForm({ groupId }: Props) {
         groupId,
         type,
         title: title.trim(),
+        location: location.trim() || undefined,
         description: description.trim() || undefined,
         isAllDay,
         startUtc,
@@ -128,6 +130,23 @@ export function EventCreateForm({ groupId }: Props) {
           disabled={isSubmitting}
           autoFocus
           placeholder="Movie night"
+          className="h-11 rounded-md border border-border bg-surface px-3 text-md text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="location" className="text-sm font-bold text-text-muted">
+          Location{" "}
+          <span className="font-normal text-text-muted">(optional)</span>
+        </label>
+        <input
+          id="location"
+          type="text"
+          maxLength={200}
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          disabled={isSubmitting}
+          placeholder="Where? e.g. Cafe Lola, 12 Main St"
           className="h-11 rounded-md border border-border bg-surface px-3 text-md text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
         />
       </div>

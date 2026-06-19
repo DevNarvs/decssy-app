@@ -14,7 +14,8 @@ type NotificationType =
   | "event_cancelled"
   | "comment_added"
   | "invite_accepted"
-  | "ownership_transferred";
+  | "ownership_transferred"
+  | "event_reminder";
 
 interface CreateArgs {
   userId: Id<"users">;

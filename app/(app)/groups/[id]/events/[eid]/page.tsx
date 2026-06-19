@@ -4,7 +4,15 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, User, Users, Share2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Trash2,
+  User,
+  Users,
+  Share2,
+  MapPin,
+  CalendarPlus,
+} from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { EventTimeDisplay } from "@/components/events/EventTimeDisplay";
@@ -14,7 +22,13 @@ import { CommentThread } from "@/components/events/CommentThread";
 import { RecurrenceBadge } from "@/components/events/RecurrenceBadge";
 import { EventShareDialog } from "@/components/events/EventShareDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { downloadEventIcs } from "@/lib/ics";
 import { cn } from "@/lib/utils";
+
+/** Universal Google Maps search link — opens the native maps app on mobile. */
+function mapsUrl(loc: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`;
+}
 
 interface PageProps {
   params: Promise<{ id: string; eid: string }>;
@@ -97,6 +111,16 @@ export default function EventDetailPage({ params }: PageProps) {
         <h2 className="flex-1 truncate text-lg font-extrabold tracking-tight text-text">
           {event.title}
         </h2>
+        {/* Add to calendar — anyone who can see the event can save it. */}
+        <button
+          type="button"
+          onClick={() => downloadEventIcs(event)}
+          aria-label="Add to calendar"
+          title="Add to calendar"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-text-muted hover:bg-surface-2 hover:text-text"
+        >
+          <CalendarPlus size={16} strokeWidth={1.5} />
+        </button>
         {/* Guests can't re-share an event they don't own — hide the button. */}
         {!isGuest && (
           <button
@@ -139,6 +163,17 @@ export default function EventDetailPage({ params }: PageProps) {
           <p className="mt-1 text-sm text-text-muted">
             <EventTimeDisplay event={event} />
           </p>
+          {event.location && (
+            <a
+              href={mapsUrl(event.location)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-sm font-bold text-accent hover:text-accent/80"
+            >
+              <MapPin size={12} strokeWidth={1.5} />
+              {event.location}
+            </a>
+          )}
           {event.recurrenceRule && (
             <div className="mt-2 inline-flex">
               <RecurrenceBadge

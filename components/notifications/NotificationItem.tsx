@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useMutation } from "convex/react";
-import { Check, MessageSquare, UserPlus, Edit3, X, Crown } from "lucide-react";
+import {
+  Check,
+  MessageSquare,
+  UserPlus,
+  Edit3,
+  X,
+  Crown,
+  Clock,
+} from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
@@ -30,6 +38,8 @@ function iconFor(type: string) {
       return UserPlus;
     case "ownership_transferred":
       return Crown;
+    case "event_reminder":
+      return Clock;
     default:
       return Check;
   }
