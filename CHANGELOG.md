@@ -22,6 +22,10 @@ The version shown in the app (Settings → footer) is this `version` from
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.1.0] — 2026-05-13
+
 ### Added
 - **Remove a member from a group** — the owner can remove members from the
   group detail page. Removing also revokes their access to the group's events
@@ -76,5 +80,6 @@ families, and small teams (Next.js + Convex + Convex Auth, deployed on Vercel).
 - **"What's new"** screen highlights each version's features once after an
   update (curated highlights, separate from this changelog).
 
-[Unreleased]: https://github.com/DevNarvs/decssy-app/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/DevNarvs/decssy-app/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/DevNarvs/decssy-app/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/DevNarvs/decssy-app/releases/tag/v1.0.0
