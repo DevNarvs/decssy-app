@@ -35,6 +35,10 @@ export const env = {
   // Convex deployment env). Optional: when unset, the push opt-in UI hides
   // itself. Set in .env.local (dev) and Vercel (prod).
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+
+  // Build-time app version (git short SHA, or "dev" locally). Injected via
+  // next.config.ts. Shown in Settings and used to bust the service worker.
+  NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION ?? "dev",
 };
 
 /**

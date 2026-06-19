@@ -9,6 +9,7 @@ import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { SignOutButton } from "@/components/nav/SignOutButton";
 import { DeleteAccountSection } from "@/components/settings/DeleteAccountSection";
 import { PushManager } from "@/components/push/PushManager";
+import { env } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
 type PrefKey =
@@ -200,6 +201,11 @@ export default function SettingsPage() {
 
         {/* Delete account */}
         <DeleteAccountSection />
+
+        {/* App version */}
+        <p className="pb-4 text-center text-xs text-text-muted">
+          Decssy · v{env.NEXT_PUBLIC_APP_VERSION}
+        </p>
       </div>
     </div>
   );

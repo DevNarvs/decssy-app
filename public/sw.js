@@ -7,12 +7,23 @@
  * assets; offline fallback for /calendar).
  */
 
-self.addEventListener("install", () => {
-  self.skipWaiting();
-});
+// Do NOT skipWaiting here: when an update is found we let the new worker WAIT
+// so the app can show an "Update available" banner and the user controls when
+// to refresh (the page posts SKIP_WAITING below). First installs (no existing
+// controller) still activate immediately, so push works for new installs.
+self.addEventListener("install", () => {});
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
+});
+
+// The page (ServiceWorkerRegistrar) posts this when the user taps "Refresh"
+// on the update banner — activate the waiting worker, which fires
+// controllerchange on the page and triggers a reload.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 // Empty fetch handler — browsers ignore PWAs without one for installability.

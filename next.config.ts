@@ -1,7 +1,33 @@
 import type { NextConfig } from "next";
+import { execFileSync } from "node:child_process";
+
+/**
+ * Build-time app version, shown in Settings and used to bust the service
+ * worker on each deploy (registered as /sw.js?v=<version>). On Vercel,
+ * VERCEL_GIT_COMMIT_SHA is provided automatically; locally we read git;
+ * otherwise "dev".
+ */
+function resolveAppVersion(): string {
+  if (process.env.VERCEL_GIT_COMMIT_SHA) {
+    return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7);
+  }
+  try {
+    // execFile (no shell) with a fixed arg array — no injection surface.
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"]).toString().trim();
+  } catch {
+    return "dev";
+  }
+}
+
+const APP_VERSION = resolveAppVersion();
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
+  // Inlined into the client bundle so the version is available everywhere.
+  env: {
+    NEXT_PUBLIC_APP_VERSION: APP_VERSION,
+  },
 
   async headers() {
     return [
