@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import {
   mutation,
+  query,
   internalQuery,
   internalMutation,
 } from "./_generated/server";
@@ -45,16 +46,19 @@ export const savePushSubscription = mutation({
 export const deletePushSubscription = mutation({
   args: { endpoint: v.string() },
   handler: async (ctx, { endpoint }) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return;
     const row = await ctx.db
       .query("pushSubscriptions")
       .withIndex("by_endpoint", (q) => q.eq("endpoint", endpoint))
       .unique();
-    if (row) await ctx.db.delete(row._id);
+    // Defense-in-depth: only delete your own subscription.
+    if (row && row.userId === userId) await ctx.db.delete(row._id);
   },
 });
 
-/** Whether the current user has at least one active subscription. */
-export const hasPushSubscription = mutation({
+/** Whether a subscription exists for this endpoint (read-only). */
+export const hasPushSubscription = query({
   args: { endpoint: v.string() },
   handler: async (ctx, { endpoint }) => {
     const row = await ctx.db

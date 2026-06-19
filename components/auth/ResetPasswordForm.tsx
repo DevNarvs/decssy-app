@@ -63,7 +63,7 @@ export function ResetPasswordForm() {
     }
     // Always advance with a neutral message.
     setNotice(
-      "If an account exists for that email, we sent a 6–8 digit code. Enter it below.",
+      "If an account exists for that email, we sent an 8-digit code. Enter it below.",
     );
     setStep("verify");
   }

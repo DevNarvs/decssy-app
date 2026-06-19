@@ -100,6 +100,16 @@ export const deleteAccount = mutation({
         others.sort((a, b) => a.joinedAt - b.joinedAt);
         const heir = others[0]!.userId;
         await ctx.db.patch(g._id, { ownerId: heir });
+        // Re-stamp the departing owner's invites to the heir so no row dangles
+        // with a dead createdBy (only the owner can create invites).
+        for (const inv of await ctx.db
+          .query("groupInvites")
+          .withIndex("by_group", (q) => q.eq("groupId", g._id))
+          .collect()) {
+          if (inv.createdBy === userId) {
+            await ctx.db.patch(inv._id, { createdBy: heir });
+          }
+        }
         await createNotification(ctx, {
           userId: heir,
           type: "ownership_transferred",
@@ -151,6 +161,21 @@ export const deleteAccount = mutation({
       .withIndex("by_user_and_created", (q) => q.eq("userId", userId))
       .collect()) {
       await ctx.db.delete(n._id);
+    }
+    // Push subscriptions — a live push channel + key material; must be erased.
+    for (const p of await ctx.db
+      .query("pushSubscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect()) {
+      await ctx.db.delete(p._id);
+    }
+    // Reminder-ledger rows on events in groups the user doesn't own (those
+    // events survive, so cascadeDeleteEvent didn't reach these).
+    for (const r of await ctx.db
+      .query("eventReminders")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect()) {
+      await ctx.db.delete(r._id);
     }
 
     // ── 4. Convex Auth rows (children before parents) ────────────────────

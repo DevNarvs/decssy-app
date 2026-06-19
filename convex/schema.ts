@@ -196,7 +196,9 @@ export default defineSchema({
     userId: v.id("users"),
     leadKey: v.union(v.literal("24h"), v.literal("1h")),
     createdAt: v.number(),
-  }).index("by_dedup", ["eventId", "occurrenceStartUtc", "userId", "leadKey"]),
+  })
+    .index("by_dedup", ["eventId", "occurrenceStartUtc", "userId", "leadKey"])
+    .index("by_user", ["userId"]), // for purging a deleted user's reminder ledger
 
   // Web Push subscriptions (one per browser/device the user enabled push on).
   // The Convex node action convex/pushNode.ts reads these to fan out pushes;
