@@ -22,7 +22,10 @@ The version shown in the app (Settings → footer) is this `version` from
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Remove a member from a group** — the owner can remove members from the
+  group detail page. Removing also revokes their access to the group's events
+  (not just the roster). `leaveGroup` now does the same cleanup.
 
 ## [1.0.0] — 2026-05-13
 

@@ -180,6 +180,8 @@ export default function GroupDetailPage({ params }: PageProps) {
           <MemberList
             members={detail.members}
             groupColor={detail.group.color}
+            groupId={groupId}
+            canManage={detail.isOwner}
           />
         </section>
       </div>

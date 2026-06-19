@@ -4,7 +4,7 @@
  */
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { isValidGroupColor } from "./lib/groupColors";
 import {
@@ -239,6 +239,52 @@ export const updateGroup = mutation({
  * Non-owner leaves a group. Owner cannot leave — they must delete the group
  * or (in Plan 3) transfer ownership first.
  */
+/**
+ * Remove a user's membership in a group AND revoke their access to its
+ * events: delete their eventAttendees rows for the group's events (so they
+ * can't still reach events via getEvent's "member OR attendee row" rule) and
+ * drop their per-group notification mute. Does NOT delete content they
+ * authored (events/comments stay as group history). Shared by leaveGroup and
+ * removeMember so "no longer in the group" always means "no lingering access".
+ */
+async function removeMembershipAndAccess(
+  ctx: MutationCtx,
+  groupId: Id<"groups">,
+  userId: Id<"users">,
+) {
+  const membership = await ctx.db
+    .query("groupMembers")
+    .withIndex("by_group_and_user", (q) =>
+      q.eq("groupId", groupId).eq("userId", userId),
+    )
+    .unique();
+  if (membership) await ctx.db.delete(membership._id);
+
+  // Revoke event access: drop their attendee rows on this group's events.
+  const events = await ctx.db
+    .query("events")
+    .withIndex("by_group", (q) => q.eq("groupId", groupId))
+    .collect();
+  for (const e of events) {
+    const att = await ctx.db
+      .query("eventAttendees")
+      .withIndex("by_event_and_user", (q) =>
+        q.eq("eventId", e._id).eq("userId", userId),
+      )
+      .unique();
+    if (att) await ctx.db.delete(att._id);
+  }
+
+  // Drop their mute for this group, if any.
+  const mute = await ctx.db
+    .query("notificationMutes")
+    .withIndex("by_user_and_group", (q) =>
+      q.eq("userId", userId).eq("groupId", groupId),
+    )
+    .unique();
+  if (mute) await ctx.db.delete(mute._id);
+}
+
 export const leaveGroup = mutation({
   args: { groupId: v.id("groups") },
   handler: async (ctx, { groupId }) => {
@@ -252,16 +298,34 @@ export const leaveGroup = mutation({
         "Owners can't leave — delete the group or transfer ownership first",
       );
     }
+    await removeMembershipAndAccess(ctx, groupId, userId);
+  },
+});
 
+/**
+ * Owner-only: remove another member from the group. Revokes their event
+ * access (see removeMembershipAndAccess). The owner can't be removed —
+ * transfer ownership or delete the group instead.
+ */
+export const removeMember = mutation({
+  args: { groupId: v.id("groups"), userId: v.id("users") },
+  handler: async (ctx, { groupId, userId: targetUserId }) => {
+    const ownerId = await requireOwner(ctx, groupId);
+    if (targetUserId === ownerId) {
+      throw new Error(
+        "The owner can't be removed — transfer ownership or delete the group",
+      );
+    }
     const membership = await ctx.db
       .query("groupMembers")
       .withIndex("by_group_and_user", (q) =>
-        q.eq("groupId", groupId).eq("userId", userId),
+        q.eq("groupId", groupId).eq("userId", targetUserId),
       )
       .unique();
-    if (membership) {
-      await ctx.db.delete(membership._id);
+    if (!membership) {
+      throw new Error("That person isn't a member of this group");
     }
+    await removeMembershipAndAccess(ctx, groupId, targetUserId);
   },
 });
 
