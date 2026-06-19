@@ -1,5 +1,6 @@
 import { BottomTabBar } from "@/components/nav/BottomTabBar";
 import { SidebarNav } from "@/components/nav/SidebarNav";
+import { WhatsNew } from "@/components/WhatsNew";
 
 /**
  * Auth-protected route group layout.
@@ -15,6 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarNav />
       <main className="min-h-screen pb-nav md:ml-60 md:pb-0">{children}</main>
       <BottomTabBar />
+      <WhatsNew />
     </div>
   );
 }

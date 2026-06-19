@@ -70,6 +70,8 @@ families, and small teams (Next.js + Convex + Convex Auth, deployed on Vercel).
 - Installable PWA (manifest, service worker, icons, OG image).
 - App **version** shown in Settings; **"Update available" banner** detects new
   deploys and offers a one-tap refresh.
+- **"What's new"** screen highlights each version's features once after an
+  update (curated highlights, separate from this changelog).
 
 [Unreleased]: https://github.com/DevNarvs/decssy-app/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/DevNarvs/decssy-app/releases/tag/v1.0.0
